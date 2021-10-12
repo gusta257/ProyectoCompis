@@ -219,8 +219,12 @@ class DecafPrueba(DecafListener):
         print("Esto es un",left.getText(),"=",right.getText())
         
         #Trabajando con el valor asignado a la variable
+        print("*"*20)
+        print("BUSCANDO",right)
+        print("*"*20)
+
         E = self.nodeCodes[right]
-        
+
         if("[" not in left.getText()):
             id = left.getText()
             # hacer top get
@@ -240,7 +244,7 @@ class DecafPrueba(DecafListener):
 
     def exitLiteral(self, ctx:DecafParser.LiteralContext):
         child = ctx.getChild(0)
-        print("METIENDO A",ctx,"EL VALOR",child,self.nodeCodes[child])
+        #print("METIENDO A",ctx,"EL VALOR",child,self.nodeCodes[child])
         self.nodeTypes[ctx] = self.nodeTypes[child]
         self.nodeCodes[ctx] = self.nodeCodes[child]
         print()
@@ -256,7 +260,7 @@ class DecafPrueba(DecafListener):
         
         if(integers):
             print("ESTAMOS SALIENDO DE UN EXPR DE INTS\n")
-            print("METIENDO A",ctx,"EL VALOR",literal,self.nodeCodes[literal])
+            #print("METIENDO A",ctx,"EL VALOR",literal,self.nodeCodes[literal])
             self.nodeTypes[ctx] = self.nodeTypes[literal]
             self.nodeCodes[ctx] = self.nodeCodes[literal]
             print()
@@ -278,17 +282,17 @@ class DecafPrueba(DecafListener):
 
     def exitLocation(self, ctx:DecafParser.LocationContext):
         #AQUI OBTENGO EL CTX DE LA VARIABLEEE
-        print("-"*20)
-        print("En el exitLocation")
-        print("Yo",ctx)
-        print("Yo",ctx.getText())
-        print(ctx.getChild(0))
+        #print("-"*20)
+        #print("En el exitLocation")
+        #print("Yo",ctx)
+        #print("Yo",ctx.getText())
+        #print(ctx.getChild(0))
         variable = ctx.getText()
-        print("Encontro el var_id",variable)
+        #print("Encontro el var_id",variable)
 
         addr = self.TopeGet(variable)
-        print("Lo que devuelve el topeget es",addr)
-        print("-"*20)
+        #print("Lo que devuelve el topeget es",addr)
+        #print("-"*20)
 
         
         self.nodeCodes[ctx] = {
@@ -312,7 +316,44 @@ class DecafPrueba(DecafListener):
             'dir': addr
         }
         #print("Object",self.code_nodes[ctx])
+    def exitExpr_arith5(self, ctx:DecafParser.Expr_arith5Context):
+        print("SALIENDO DE exitExpr_arith5,",ctx)
+        
+        left = ctx.getChild(0)
+        sign = ctx.getChild(1).getText()
+        right = ctx.getChild(2)
+        addr = self.crearTemporal()
 
+        code = self.nodeCodes[left]['codigo']+self.nodeCodes[right]['codigo']+[addr+' = '+self.nodeCodes[left]['dir'] + ' '+sign+' '+self.nodeCodes[right]['dir']]
+        
+        self.nodeCodes[ctx] = {
+            'codigo': code,
+            'dir': addr
+        }
+        
+    def exitExpr_minus(self, ctx:DecafParser.Expr_minusContext):
+        left = ctx.getChild(1)
+        addr = self.crearTemporal()
+        code = self.nodeCodes[left]['codigo']+[addr+' = '+'menos '+self.nodeCodes[left]['dir']]
+        
+        self.nodeCodes[ctx] = {
+            'codigo': code,
+            'dir': addr
+        }
+
+    def exitExpr_parenthesis(self, ctx:DecafParser.Expr_parenthesisContext):
+        print("EN exitExpr_parenthesis", ctx)
+        right = ctx.getChild(1)
+        
+        E = self.nodeCodes[right]
+
+  
+        self.nodeCodes[ctx] = {
+            'codigo': E['codigo'],
+            'dir': E['dir']
+        }
+        
+        
 def main(argv):
     input_stream = FileStream(argv[1])
     lexer = DecafLexer(input_stream)
