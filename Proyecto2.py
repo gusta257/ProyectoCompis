@@ -402,6 +402,7 @@ class DecafPrueba(DecafListener):
         }
 
     def enterStatementIF(self, ctx:DecafParser.StatementIFContext):
+        self.ifCont+=1
         #Aqui debo de crear los labels, 
         # si es un if normal tengo que crear un True y un next
         # Si es un if else tengo que crear un True y un False
@@ -561,17 +562,25 @@ class DecafPrueba(DecafListener):
             statements = ctx.statement()
             code = []
             for i in statements:
-                print("Los statements ->>:",i,i.getText())
-                print(self.nodeCodes[i])
+                #print("Los statements ->>:",i,i.getText())
+                #print(self.nodeCodes[i])
                 code.extend(self.nodeCodes[i]['codigo'])
             #print("EL CODE GENERADO",code)
             self.nodeCodes[ctx]['codigo'] = code
 
         print()
 
+    def enterExpr_not(self, ctx:DecafParser.Expr_notContext):
+        print("ESTOY ENTRANDO AL NOT",ctx)
+        print("HIJO 0",ctx.getChild(0))
+        print("HIJO 1",ctx.getChild(1).getText())
+    
+    def exitExpr_not(self, ctx:DecafParser.Expr_notContext):
+        print("ESTOY SALIENDO AL NOT",ctx)
+
     def exitExpr_arith3(self, ctx:DecafParser.Expr_arith3Context):
         
-        print("SALIENDO CTX exitExpr_arith3",ctx)
+        print("Y BUSCANDO SALIENDO CTX exitExpr_arith3",ctx)
         print("CANTIDAD HIJOS",ctx.getChildCount())
         print("HIJO 0",ctx.getChild(0),ctx.getChild(0).getText())
         print("HIJO 1",ctx.getChild(1),ctx.getChild(1).getText())
@@ -581,7 +590,7 @@ class DecafPrueba(DecafListener):
         # AHORITA TENGO Datos {'true': 'IF_TRUE_0', 'false': 'NEXT_S_0'}
         child = ctx.arith_op_third()
         B = self.nodeCodes[ctx]
-        if(child.rel_op()): #B -> E1 rel E2
+        if(child.rel_op() or child.eq_op() ):
             expr = ctx.expression()
             for i in expr:
                 print("BUSCANDO XD",i)
@@ -590,7 +599,11 @@ class DecafPrueba(DecafListener):
             E2 = self.nodeCodes[expr[1]] # PARA EL NUM 5
             #print("ESTOS ES E1",E1)
             #print("ESTOS ES E2",E2)
-            op = child.rel_op().getText() # EL SIGNO DE
+            if(child.rel_op()):
+                op = child.rel_op().getText()
+            elif(child.eq_op()):
+                op = child.eq_op().getText()
+
             code = E1['codigo']+E2['codigo']+['IF '+E1['dir']+' '+op+' '+E2['dir']+' GOTO '+B['true']]+['GOTO '+B['false']]
             #print(code)
             B['codigo'] = code

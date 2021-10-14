@@ -23,7 +23,7 @@ varDeclaration:
 structDeclaration:'struct' ID '{' (varDeclaration)* '}' ;
 varType :
     'int'                   #INT_VARTYPE
-    | 'CHAR'                #CHAR_VARTYPE
+    | 'char'                #CHAR_VARTYPE
     | 'boolean'             #BOOL_VARTYPE
     | 'struct' ID           #STRUCT_VARTYPE
     | structDeclaration     #STRUCTDECLARATION_VARTYPE
@@ -31,7 +31,7 @@ varType :
 methodDeclaration: methodType ID '(' (parameter (',' parameter)*)* ')' block ;
 methodType: 
       'int'       #INT_METHODTYPE
-    | 'CHAR'      #CHAR_METHODTYPE
+    | 'char'      #CHAR_METHODTYPE
     | 'boolean'   #BOOL_METHODTYPE
     | 'void'      #VOID_METHODTYPE;
 parameter: 
@@ -39,7 +39,7 @@ parameter:
     | parameterType ID '[' ']' ;
 parameterType: 
       'int' 
-    | 'CHAR' 
+    | 'char' 
     | 'boolean' ;
 block: '{' (varDeclaration)* (statement)* '}';
 statement: 
@@ -48,8 +48,7 @@ statement:
     | 'return' expression ';'                               #StatementRETURN
     | methodCall ';'                                        #StatementMETHODCALL
     | block                                                 #StatementBLOCK
-    | location '=' expression                               #StatementLOCATION
-    | (expression)? ';'                                     #StatementEXPRESSION;
+    | location '=' expression ';'                           #StatementLOCATION;
 
 location: (ID|ID '[' expression ']') ('.' location)? ;
 expression 
