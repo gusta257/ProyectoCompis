@@ -279,7 +279,7 @@ class DecafPrueba(DecafListener):
             for i in code:
                 print(i)
             print("*"*20)
-
+            ##print("AGREGANDO A",ctx,"EL CODIGO",code)
             self.nodeCodes[ctx] = {
                 'dir': E['dir'],
                 'codigo': code
@@ -358,7 +358,7 @@ class DecafPrueba(DecafListener):
         addr = self.crearTemporal()
 
         code = self.nodeCodes[left]['codigo']+self.nodeCodes[right]['codigo']+[addr+' = '+self.nodeCodes[left]['dir'] + ' '+sign+' '+self.nodeCodes[right]['dir']]
-        
+        #print("AGREGANDO A",ctx,"EL CODIGO",code)
         self.nodeCodes[ctx] = {
             'codigo': code,
             'dir': addr
@@ -373,7 +373,7 @@ class DecafPrueba(DecafListener):
         addr = self.crearTemporal()
 
         code = self.nodeCodes[left]['codigo']+self.nodeCodes[right]['codigo']+[addr+' = '+self.nodeCodes[left]['dir'] + ' '+sign+' '+self.nodeCodes[right]['dir']]
-        
+        #print("AGREGANDO A",ctx,"EL CODIGO",code)
         self.nodeCodes[ctx] = {
             'codigo': code,
             'dir': addr
@@ -383,7 +383,7 @@ class DecafPrueba(DecafListener):
         left = ctx.getChild(1)
         addr = self.crearTemporal()
         code = self.nodeCodes[left]['codigo']+[addr+' = '+'menos '+self.nodeCodes[left]['dir']]
-        
+        #print("AGREGANDO A",ctx,"EL CODIGO",code)
         self.nodeCodes[ctx] = {
             'codigo': code,
             'dir': addr
@@ -395,7 +395,7 @@ class DecafPrueba(DecafListener):
         print("*"*200)
         E = self.nodeCodes[right]
 
-  
+        #print("AGREGANDO A",ctx,"EL CODIGO",E['codigo'])
         self.nodeCodes[ctx] = {
             'codigo': E['codigo'],
             'dir': E['dir']
@@ -416,6 +416,7 @@ class DecafPrueba(DecafListener):
         #print("HIJO 6",ctx.getChild(6),ctx.getChild(6).getText(),type(ctx.getChild(6)))
         b_true = self.crearEtiqueta('IF','TRUE')
         b_next = self.crearEtiqueta('NEXT')
+        
         print(b_true)
         print(b_next)
         # Hijo 2 es expression
@@ -484,11 +485,16 @@ class DecafPrueba(DecafListener):
             S2 = self.nodeCodes[block2]
             code = B['codigo']+[B['true']]+S1['codigo']+['GOTO '+ S1['next']]+[B['false']] +S2['codigo']+[S1['next']]
             print("*"*20)
-            print(code)
+            #print(code)
             print("CODIGO INTERMEDIO")
             for i in code:
                 print(i)
+            #print("AGREGANDO A",ctx,"EL CODIGO",code)
+            self.nodeCodes[ctx] = {
+                'codigo': code
+            }
             print("*"*20)
+            
         else:
             expr = ctx.expression()
             block = ctx.getChild(4)
@@ -500,6 +506,10 @@ class DecafPrueba(DecafListener):
             print("CODIGO INTERMEDIO")
             for i in code:
                 print(i)
+            #print("AGREGANDO A",ctx,"EL CODIGO",code)
+            self.nodeCodes[ctx] = {
+                'codigo': code
+            }
             print("*"*20)
 
         print("#"*20,"\n")
@@ -513,8 +523,15 @@ class DecafPrueba(DecafListener):
             print("HIJO 0",ctx.getChild(0))
             print("HIJO 1",ctx.getChild(1),type(ctx.getChild(1)),ctx.getChild(1).getText())
             print("HIJO 2",ctx.getChild(2))
+            print("HAY ESTA CANTIDAD DE VARIABLES DELCARADAS EN EL BLOCK",len(ctx.varDeclaration()))
+            print("HAY ESTA CANTIDAD DE STATEMENTS EN EL BLOCK",len(ctx.statement())) 
             
+            # TODO:
             # LUEGO HACER UN FI PARA CUADNO SEA MAS DE UN BLOCK
+            # HACER FOR PARA PARA RECOLECTAR TODOS LOS (varDeclaration)* Y (statement)*
+            # EN EL CICLO ESE HAY QUE HACER PRUEBAS CON TODOS LOS STATEMENTS PARA VER QUE TODO SE GUARDE
+            
+
             expression = ctx.parentCtx.getChild(2)
             print("Expression en el block es..",expression)
             exprAddr = self.nodeCodes[expression]
@@ -532,12 +549,23 @@ class DecafPrueba(DecafListener):
             print("HIJO 0",ctx.getChild(0))
             print("HIJO 1",ctx.getChild(1),type(ctx.getChild(1)),ctx.getChild(1).getText())
             print("HIJO 2",ctx.getChild(2))
-            assignacion = ctx.getChild(1)
-            B = self.nodeCodes[assignacion]
-            print("ESTO ES B",B)
-            print("ESTOY EN",ctx)
-            print("NO TENGO ESTO",self.nodeCodes[ctx])
-            self.nodeCodes[ctx]['codigo'] = B['codigo']
+            #assignacion = ctx.getChild(1)
+            #print("Entonces no tengo un",assignacion)
+            #B = self.nodeCodes[assignacion]
+            #print("ESTO ES B",B)
+            #print("ESTOY EN",ctx)
+            #print("NO TENGO ESTO",self.nodeCodes[ctx])
+            #self.nodeCodes[ctx]['codigo'] = B['codigo']
+            print("HAY ESTA CANTIDAD DE VARIABLES DELCARADAS EN EL BLOCK",len(ctx.varDeclaration()))
+            print("HAY ESTA CANTIDAD DE STATEMENTS EN EL BLOCK",len(ctx.statement())) 
+            statements = ctx.statement()
+            code = []
+            for i in statements:
+                print("Los statements ->>:",i,i.getText())
+                print(self.nodeCodes[i])
+                code.extend(self.nodeCodes[i]['codigo'])
+            #print("EL CODE GENERADO",code)
+            self.nodeCodes[ctx]['codigo'] = code
 
         print()
 
