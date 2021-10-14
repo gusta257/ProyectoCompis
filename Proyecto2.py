@@ -52,8 +52,8 @@ class DecafPrueba(DecafListener):
         self.nodeCodes = {}
         self.subScopes = 0
         self.contTemp = 0
-        self.ifCont = 0
-        self.contLbl = 0
+        self.ifCont = -1
+        self.contLbl = -1
         self.errors = []
         self.offsets = {'global':[]}
         self.sizes = {
@@ -74,11 +74,11 @@ class DecafPrueba(DecafListener):
     
     def crearEtiqueta(self, tipo, boolean=''):
         # Crea nueva etiqueta para codego intermedio IF_TRUE_0, IF_FALSE_0, WHILE_TRUE_0, WHILE_FALSE_0,  etc...
-        if(tipo != 'NEXT'):
+        if(boolean == 'TRUE' or boolean == 'FALSE'):
             f = tipo+'_'+boolean+'_'+str(self.ifCont)
             return f
         else:
-            f = tipo+'_S_'+str(self.ifCont)
+            f = tipo+'_'+str(self.ifCont)
             return f
 
 
@@ -400,6 +400,102 @@ class DecafPrueba(DecafListener):
             'codigo': E['codigo'],
             'dir': E['dir']
         }
+    def enterStatementWHILE(self, ctx:DecafParser.StatementWHILEContext):
+        print("ENTRAMOS AL WHILE",ctx)
+        self.ifCont+=1
+        #Aqui debo de crear los labels, 
+        # si es un if normal tengo que crear un True y un next
+        # Si es un if else tengo que crear un True y un False
+        print("TIENE ESTOS HIJOS",ctx.getChildCount())
+        inicio = self.crearEtiqueta('BEGIN_WHILE')
+        b_true = self.crearEtiqueta('WHILE','TRUE')
+        b_next = self.crearEtiqueta('END_WHILE')
+        b_false = b_next
+        expr = ctx.getChild(2)
+        block = ctx.getChild(4)
+        self.nodeCodes[expr] = {
+            'true':b_true,
+            'false':b_false
+            }
+        self.nodeCodes[block] = {
+                'next': inicio
+            }
+
+    def exitStatementWHILE(self, ctx:DecafParser.StatementWHILEContext):
+        print("Saliendo del WHILE",ctx)
+        expr = ctx.expression()
+        block = ctx.getChild(4)
+        B = self.nodeCodes[expr]
+        S = self.nodeCodes[block]
+        '''
+        S.codigo = 
+        etiqueta (inicio) 
+        || B.codigo
+        || etiqueta (B.true) 
+        || S 1.codigo
+        || gen ( goto inicio)
+        '''
+        code = [S['next']]+B['codigo']+[B['true']]+S['codigo']+['GOTO '+S['next']]+[B['false']] #+ [B['true']] + S['codigo'] + [B['false']]
+        print("*"*20)
+        
+        print("CODIGO INTERMEDIO")
+        for i in code:
+            print(i)
+     
+        #self.nodeCodes[ctx] = {
+        #    'codigo': code
+        #}
+        print("*"*20)
+
+
+    def exitStatementIF(self, ctx:DecafParser.StatementIFContext):
+    
+        print("#"*20)
+        print("SALIENDO DE UN IF")
+        if(len(ctx.children) > 5):
+            #ELSE
+            #   B.codigo
+            #|| etiqueta (B.true) 
+            #|| S 1.codigo
+            #|| gen ( goto S.siguiente)
+            #|| etiqueta (B.false) 
+            # || S 2.codigo
+            expr = ctx.expression()
+            block1 = ctx.getChild(4)
+            block2 = ctx.getChild(6)
+            B = self.nodeCodes[expr]
+            S1 = self.nodeCodes[block1]
+            S2 = self.nodeCodes[block2]
+            code = B['codigo']+[B['true']]+S1['codigo']+['GOTO '+ S1['next']]+[B['false']] +S2['codigo']+[S1['next']]
+            print("*"*20)
+            #print(code)
+            print("CODIGO INTERMEDIO")
+            for i in code:
+                print(i)
+            #print("AGREGANDO A",ctx,"EL CODIGO",code)
+            self.nodeCodes[ctx] = {
+                'codigo': code
+            }
+            print("*"*20)
+            
+        else:
+            expr = ctx.expression()
+            block = ctx.getChild(4)
+            B = self.nodeCodes[expr]
+            S = self.nodeCodes[block]
+            code = B['codigo'] + [B['true']] + S['codigo'] + [B['false']]
+            print("*"*20)
+            print("CODIGO INTERMEDIO")
+            for i in code:
+                print(i)
+            #print("AGREGANDO A",ctx,"EL CODIGO",code)
+            self.nodeCodes[ctx] = {
+                'codigo': code
+            }
+            print("*"*20)
+
+        print("#"*20,"\n")
+
 
     def enterStatementIF(self, ctx:DecafParser.StatementIFContext):
         self.ifCont+=1
@@ -416,7 +512,7 @@ class DecafPrueba(DecafListener):
         #print("HIJO 5",ctx.getChild(5))
         #print("HIJO 6",ctx.getChild(6),ctx.getChild(6).getText(),type(ctx.getChild(6)))
         b_true = self.crearEtiqueta('IF','TRUE')
-        b_next = self.crearEtiqueta('NEXT')
+        b_next = self.crearEtiqueta('END_IF')
         
         print(b_true)
         print(b_next)
@@ -466,54 +562,7 @@ class DecafPrueba(DecafListener):
         #print("AGREGANDOLE TRUE Y FALSE A ",expr)
         print()
 
-    def exitStatementIF(self, ctx:DecafParser.StatementIFContext):
-
-        print("#"*20)
-        print("SALIENDO DE UN IF")
-        if(len(ctx.children) > 5):
-            #ELSE
-            #   B.codigo
-            #|| etiqueta (B.true) 
-            #|| S 1.codigo
-            #|| gen ( goto S.siguiente)
-            #|| etiqueta (B.false) 
-            # || S 2.codigo
-            expr = ctx.expression()
-            block1 = ctx.getChild(4)
-            block2 = ctx.getChild(6)
-            B = self.nodeCodes[expr]
-            S1 = self.nodeCodes[block1]
-            S2 = self.nodeCodes[block2]
-            code = B['codigo']+[B['true']]+S1['codigo']+['GOTO '+ S1['next']]+[B['false']] +S2['codigo']+[S1['next']]
-            print("*"*20)
-            #print(code)
-            print("CODIGO INTERMEDIO")
-            for i in code:
-                print(i)
-            #print("AGREGANDO A",ctx,"EL CODIGO",code)
-            self.nodeCodes[ctx] = {
-                'codigo': code
-            }
-            print("*"*20)
-            
-        else:
-            expr = ctx.expression()
-            block = ctx.getChild(4)
-            B = self.nodeCodes[expr]
-            S = self.nodeCodes[block]
-            code = B['codigo'] + [B['true']] + S['codigo'] + [B['false']]
-            print("*"*20)
-            print(code)
-            print("CODIGO INTERMEDIO")
-            for i in code:
-                print(i)
-            #print("AGREGANDO A",ctx,"EL CODIGO",code)
-            self.nodeCodes[ctx] = {
-                'codigo': code
-            }
-            print("*"*20)
-
-        print("#"*20,"\n")
+    
 
     def enterBlock(self, ctx:DecafParser.BlockContext):
         
@@ -543,9 +592,10 @@ class DecafPrueba(DecafListener):
         print()
 
     def exitBlock(self, ctx:DecafParser.BlockContext):
+        print("salgo al block",ctx)
         if (type(ctx.parentCtx) == DecafParser.StatementIFContext):
             
-            print("salgo al block",ctx)
+            
             print("Y TIENE ESTA CANTIDAD DE HIJOS",ctx.getChildCount())
             print("HIJO 0",ctx.getChild(0))
             print("HIJO 1",ctx.getChild(1),type(ctx.getChild(1)),ctx.getChild(1).getText())
@@ -568,6 +618,16 @@ class DecafPrueba(DecafListener):
             #print("EL CODE GENERADO",code)
             self.nodeCodes[ctx]['codigo'] = code
 
+        elif(type(ctx.parentCtx) == DecafParser.StatementWHILEContext):
+            print("Es un while")
+            statements = ctx.statement()
+            code = []
+            for i in statements:
+                print("Los statements ->>:",i,i.getText())
+                print(self.nodeCodes[i])
+                code.extend(self.nodeCodes[i]['codigo'])
+            print("EL CODE GENERADO",code)
+            self.nodeCodes[ctx]['codigo'] = code
         print()
 
     def enterExpr_not(self, ctx:DecafParser.Expr_notContext):
