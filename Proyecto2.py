@@ -406,58 +406,102 @@ class DecafPrueba(DecafListener):
         # si es un if normal tengo que crear un True y un next
         # Si es un if else tengo que crear un True y un False
         print("ENTRANDO AL IF",ctx)
+        print("TIENE ESTOS HIJOS",ctx.getChildCount())
+        #print("HIJO 0",ctx.getChild(0))
+        #print("HIJO 1",ctx.getChild(1))
+        #print("HIJO 2",ctx.getChild(2),ctx.getChild(2).getText(),type(ctx.getChild(2)))
+        #print("HIJO 3",ctx.getChild(3))
+        #print("HIJO 4",ctx.getChild(4),ctx.getChild(4).getText(),type(ctx.getChild(4)))
+        #print("HIJO 5",ctx.getChild(5))
+        #print("HIJO 6",ctx.getChild(6),ctx.getChild(6).getText(),type(ctx.getChild(6)))
         b_true = self.crearEtiqueta('IF','TRUE')
         b_next = self.crearEtiqueta('NEXT')
         print(b_true)
         print(b_next)
         # Hijo 2 es expression
-        expr = ctx.getChild(2)
-        block = ctx.getChild(4)
+        
         # Hijo 4 es block
 
         if(len(ctx.children) > 5):
-            print("Es un else")
-            # aqui el b_flase se convierte en algo mas
-        else:
-            b_false = b_next
-
-        self.nodeCodes[expr] = {
+            expr = ctx.getChild(2)
+            blockIF = ctx.getChild(4)
+            blockELSE = ctx.getChild(6)
+            print("Es un IF else")
+            b_false = self.crearEtiqueta('IF','FALSE')
+            self.nodeCodes[expr] = {
             'true':b_true,
             'false':b_false
-        }
-        self.nodeCodes[block] = {
-            'next': b_next
-        }
+            }
+            self.nodeCodes[blockIF] = {
+                'next': b_next
+            }
+            self.nodeCodes[blockELSE] = {
+                'next': b_next
+            }
+            # aqui el b_flase se convierte en algo mas
+        else:
+            expr = ctx.getChild(2)
+            block = ctx.getChild(4)
+
+            b_false = b_next
+        
+            self.nodeCodes[expr] = {
+            'true':b_true,
+            'false':b_false
+            }
+        
+            self.nodeCodes[block] = {
+                'next': b_next
+            }
+        #self.nodeCodes[expr] = {
+        #    'true':b_true,
+        #    'false':b_false
+        #}
+        #self.nodeCodes[block] = {
+        #    'next': b_next
+        #}
+        #print("AGREGANDOLE NEXT A ",block)
+        #print("AGREGANDOLE TRUE Y FALSE A ",expr)
         print()
 
     def exitStatementIF(self, ctx:DecafParser.StatementIFContext):
 
         print("#"*20)
         print("SALIENDO DE UN IF")
-        print("ESTA PARTE DEBE DE TENER LA GENERACION DE")
-        #print("IF, GOT, CODIGO DENTRO Y NEXT")
-        expr = ctx.expression()
-        block = ctx.getChild(4)
-        B = self.nodeCodes[expr]
-        S = self.nodeCodes[block]
-        #print("Tengo expression condicional",expr,B)
-        #print("Tengo block, lo que es dentro",block,S)
-        #print() AUN NO TENEMOS EL CODIGO DE B
-        #print(B['codigo'],B['true'],S['codigo'])
-        code = B['codigo'] + [B['true']] + S['codigo'] + [B['false']]
-        print("*"*20)
-        print(code)
-        print("CODIGO INTERMEDIO")
-        for i in code:
-            print(i)
-        print("*"*20)
-        #print("ESTA DIRECCION 1:",expr)
-        #print("EL BLOCK:",block)
-        #print("Tiene dentro",self.nodeCodes[block])
-        #B = self.nodeCodes[block]
-        #code = B
-        #self.nodeCodes[ctx] = B
-        #print("ELFI QUEDA CON ",self.nodeCodes[ctx])
+        if(len(ctx.children) > 5):
+            #ELSE
+            #   B.codigo
+            #|| etiqueta (B.true) 
+            #|| S 1.codigo
+            #|| gen ( goto S.siguiente)
+            #|| etiqueta (B.false) 
+            # || S 2.codigo
+            expr = ctx.expression()
+            block1 = ctx.getChild(4)
+            block2 = ctx.getChild(6)
+            B = self.nodeCodes[expr]
+            S1 = self.nodeCodes[block1]
+            S2 = self.nodeCodes[block2]
+            code = B['codigo']+[B['true']]+S1['codigo']+['GOTO '+ S1['next']]+[B['false']] +S2['codigo']+[S1['next']]
+            print("*"*20)
+            print(code)
+            print("CODIGO INTERMEDIO")
+            for i in code:
+                print(i)
+            print("*"*20)
+        else:
+            expr = ctx.expression()
+            block = ctx.getChild(4)
+            B = self.nodeCodes[expr]
+            S = self.nodeCodes[block]
+            code = B['codigo'] + [B['true']] + S['codigo'] + [B['false']]
+            print("*"*20)
+            print(code)
+            print("CODIGO INTERMEDIO")
+            for i in code:
+                print(i)
+            print("*"*20)
+
         print("#"*20,"\n")
 
     def enterBlock(self, ctx:DecafParser.BlockContext):
@@ -490,7 +534,9 @@ class DecafPrueba(DecafListener):
             print("HIJO 2",ctx.getChild(2))
             assignacion = ctx.getChild(1)
             B = self.nodeCodes[assignacion]
-            
+            print("ESTO ES B",B)
+            print("ESTOY EN",ctx)
+            print("NO TENGO ESTO",self.nodeCodes[ctx])
             self.nodeCodes[ctx]['codigo'] = B['codigo']
 
         print()
@@ -514,62 +560,16 @@ class DecafPrueba(DecafListener):
                 
             E1 = self.nodeCodes[expr[0]] # PARA LA VARIABLE A
             E2 = self.nodeCodes[expr[1]] # PARA EL NUM 5
-            print("ESTOS ES E1",E1)
-            print("ESTOS ES E2",E2)
+            #print("ESTOS ES E1",E1)
+            #print("ESTOS ES E2",E2)
             op = child.rel_op().getText() # EL SIGNO DE
             code = E1['codigo']+E2['codigo']+['IF '+E1['dir']+' '+op+' '+E2['dir']+' GOTO '+B['true']]+['GOTO '+B['false']]
-            print(code)
+            #print(code)
             B['codigo'] = code
-        '''
-        child = ctx.arith_op_third()
-        B = self.nodeCodes[ctx]
-        if(child.rel_op()): #B -> E1 rel E2
-            expr = ctx.expression()
-            for i in expr:
-                print("BUSCANDO XD",i)
-                
-            E1 = self.nodeCodes[expr[0]] # PARA LA VARIABLE A
-            E2 = self.nodeCodes[expr[1]] # PARA EL NUM 5
 
-            op = child.rel_op().getText() # EL SIGNO DE
-            code = E1['codigo']+E2['codigo']+[' IF '+E1['dir']+' '+op+' '+E2['dir']+' GOTO '+B['true']+' GOTO '+B['false']]
-            print(code)
-        
-        #B['code'] = code
-        print("-"*20)
-        '''
         print("-"*20)
         print()
-    '''
-    def exitBlock(self, ctx:DecafParser.BlockContext):
-        print("PARA EL EXIT BLOCK")
-        statements = ctx.statement()
-        code = []
-        for st in statements:
-            
-            print("BUSCANDO",st.getText())
-            print("Uniendo",self.nodeCodes[st]['codigo'])
-            
-            #code.append(self.nodeCodes[st]['codigo'])
-        
-        self.nodeCodes[ctx] = {
-            'dir': [],
-            'codigo': code
-        }
-    '''
-    
 
-    '''
-    
-  
-    def exitRel_op(self, ctx:DecafParser.Rel_opContext):
-        print("EL CTX exitRel_op", ctx)
-        symbol = ctx.getText()
-        self.nodeCodes[ctx] = {
-            'op': symbol
-        }
-    '''
-    
     
 
 def main(argv):
