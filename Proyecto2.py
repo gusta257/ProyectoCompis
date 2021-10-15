@@ -58,7 +58,7 @@ class DecafPrueba(DecafListener):
         self.offsets = {'global':[]}
         self.sizes = {
             "int": 4,
-            "bool": 1,
+            "boolean": 1,
             "char": 1,
             "void": 0
         }
@@ -210,10 +210,6 @@ class DecafPrueba(DecafListener):
             'codigo': [],
             'dir': ctx.getText()
         }
-        #print("METIENDO A",ctx,"EL VALOR",{
-        #    'codigo': [],
-        #    'dir': ctx.getText()
-        #})
         print("Saliendo del Int Literal\n")
 
     def exitBool_literal(self, ctx:DecafParser.Bool_literalContext):
@@ -225,10 +221,6 @@ class DecafPrueba(DecafListener):
             'codigo': [],
             'dir': ctx.getText()
         }
-        #print("METIENDO A",ctx,"EL VALOR",{
-        #    'codigo': [],
-        #    'dir': ctx.getText()
-        #})
         print("Saliendo del BOOL Literal\n")
 
     def exitChar_literal(self, ctx:DecafParser.Char_literalContext):
@@ -240,13 +232,7 @@ class DecafPrueba(DecafListener):
             'codigo': [],
             'dir': ctx.getText()
         }
-        #print("METIENDO A",ctx,"EL VALOR",{
-        #    'codigo': [],
-        #    'dir': ctx.getText()
-        #})
         print("Saliendo del CHAR Literal\n")
-
-
 
 
     def exitStatementLOCATION(self, ctx:DecafParser.StatementLOCATIONContext):
@@ -300,24 +286,34 @@ class DecafPrueba(DecafListener):
 
     def exitExpr_literal(self, ctx:DecafParser.Expr_literalContext):
         
+    
         literal = ctx.getChild(0)
-
+        print("TIENE ESTOS HIJOS",ctx.getChildCount())
+        print(type(literal))
+    
 
         integers = literal.getChild(0)
-        characters = literal.getChild(1)
-        booleans = literal.getChild(2)
+        characters = literal.getChild(0)
+        booleans = literal.getChild(0)
+        print(integers.getText())
+        print(characters.getText())
+        print(booleans.getText())
         
         if(integers):
-            #print("ESTAMOS SALIENDO DE UN EXPR DE INTS\n")
+            print("ESTAMOS SALIENDO DE UN EXPR DE INTS\n")
             #print("METIENDO A",ctx,"EL VALOR",literal,self.nodeCodes[literal])
             self.nodeTypes[ctx] = self.nodeTypes[literal]
             self.nodeCodes[ctx] = self.nodeCodes[literal]
-            
+        '''
         if(characters):
             print("ESTAMOS SALIENDO DE UN EXPR DE CHARACTERS\n")
+            self.nodeTypes[ctx] = self.nodeTypes[literal]
+            self.nodeCodes[ctx] = self.nodeCodes[literal]
         if(booleans):
             print("ESTAMOS SALIENDO DE UN EXPR DE BOOLEANS\n")
-
+            self.nodeTypes[ctx] = self.nodeTypes[literal]
+            self.nodeCodes[ctx] = self.nodeCodes[literal]
+        '''
     def exitExpr_loc(self, ctx:DecafParser.Expr_locContext):
         yo = ctx
         child = ctx.location()
@@ -348,7 +344,134 @@ class DecafPrueba(DecafListener):
             'dir': addr
         }
         
+    def enterExpr_arith2(self, ctx:DecafParser.Expr_arith2Context):
+        # GENERAR ETIQUETAS Y ASIGNARLAS AL HIJO
+        print("*"*100)
+        print("Entrando  DE enterExpr_arith2,",ctx)
+        print(ctx.getChildCount())
+        print(ctx.getChild(0),ctx.getChild(0).getText())
+        print(ctx.getChild(1),ctx.getChild(1).getText())
+        print(ctx.getChild(2),ctx.getChild(2).getText())
+        #ANTES DE TODO
         
+        for expr in ctx.expression():
+            # PASANDOLE AL HIJO LAS PROPIEDADES DEL PADRE
+            # PASANDOLE A EXPR1 Y EXPR 2 LOS DATOS DE expr mayor
+            self.nodeCodes[expr] = self.nodeCodes[ctx]
+            print("PASANDOLE A", expr.getText(),self.nodeCodes[expr])
+
+        b_true = self.crearEtiqueta('EXPR')
+        print("--------------------")
+        cont = 0
+        for expr in ctx.expression():
+            if cont == 0:
+                self.nodeCodes[expr] = {
+                    'true': b_true,
+                    'false': self.nodeCodes[expr]['false']
+                }
+                print("PASANDOLE A",expr.getText(),self.nodeCodes[expr])
+            cont += 1
+            
+        print("*"*100)
+
+    def enterExpr_arith1(self, ctx:DecafParser.Expr_arith1Context):
+        # GENERAR ETIQUETAS Y ASIGNARLAS AL HIJO
+        print("*"*100)
+        print("Entrando  DE enterExpr_arith1,",ctx)
+        print(ctx.getChildCount())
+        print(ctx.getChild(0),ctx.getChild(0).getText())
+        print(ctx.getChild(1),ctx.getChild(1).getText())
+        print(ctx.getChild(2),ctx.getChild(2).getText())
+        #ANTES DE TODO
+        
+        for expr in ctx.expression():
+            # PASANDOLE AL HIJO LAS PROPIEDADES DEL PADRE
+            # PASANDOLE A EXPR1 Y EXPR 2 LOS DATOS DE expr mayor
+            self.nodeCodes[expr] = self.nodeCodes[ctx]
+            print("PASANDOLE A", expr.getText(),self.nodeCodes[expr])
+
+        b_false = self.crearEtiqueta('EXPR')
+        print("--------------------")
+        cont = 0
+        for expr in ctx.expression():
+            if cont == 0:
+                self.nodeCodes[expr] = {
+                    'true': self.nodeCodes[expr]['true'],
+                    'false': b_false
+                }
+                print("PASANDOLE A",expr.getText(),self.nodeCodes[expr])
+            cont += 1
+            
+        print("*"*100)
+
+    # Exit a parse tree produced by DecafParser#expr_arith2.
+    def exitExpr_arith2(self, ctx:DecafParser.Expr_arith2Context):
+        expr1 = ctx.getChild(0)
+        expr2 = ctx.getChild(2)
+        print("CUANDO METO ESTA COSA",expr2)
+        B = self.nodeCodes[ctx]
+        B1 = self.nodeCodes[expr1]
+        B2 = self.nodeCodes[expr2]
+        B1_true = B1['true'] 
+        # print("ESTOY GENERANDO ESTO ",B1_true)
+        B1_false = B['false']
+        B2_true = B['true']
+        B2_false = B['false']
+        self.nodeCodes[expr1] = {
+            'true': B1_true,
+            'false': B1_false,
+            'codigo': B1['codigo']
+        }
+        self.nodeCodes[expr2] = {
+            'true': B2_true,
+            'false': B2_false,
+            'codigo': B2['codigo']
+        }
+        code = self.nodeCodes[expr1]['codigo']+[B1_true]+self.nodeCodes[expr2]['codigo']
+        print("***************")
+        print("CODIGO GENERADO",code)
+        print("***************")
+        self.nodeCodes[ctx] = {
+            'codigo' : code,
+            'true' : self.nodeCodes[ctx]['true'],
+            'false': self.nodeCodes[ctx]['false']
+        }
+        print("*"*100)
+
+    # Exit a parse tree produced by DecafParser#expr_arith1.
+    def exitExpr_arith1(self, ctx:DecafParser.Expr_arith1Context):
+        expr1 = ctx.getChild(0)
+        expr2 = ctx.getChild(2)
+        print("CUANDO METO ESTA COSA",expr2)
+        B = self.nodeCodes[ctx]
+        B1 = self.nodeCodes[expr1]
+        B2 = self.nodeCodes[expr2]
+
+        B1_true = B['true'] 
+        B1_false = B1['false']
+        B2_true = B['true']
+        B2_false = B['false']
+        self.nodeCodes[expr1] = {
+            'true': B1_true,
+            'false': B1_false,
+            'codigo': B1['codigo']
+        }
+        self.nodeCodes[expr2] = {
+            'true': B2_true,
+            'false': B2_false,
+            'codigo': B2['codigo']
+        }
+        code = self.nodeCodes[expr1]['codigo']+[B1_false]+self.nodeCodes[expr2]['codigo']
+        print("***************")
+        print("CODIGO GENERADO",code)
+        print("***************")
+        self.nodeCodes[ctx] = {
+            'codigo' : code,
+            'true' : self.nodeCodes[ctx]['true'],
+            'false': self.nodeCodes[ctx]['false']
+        }
+        print("*"*100)
+
     def exitExpr_arith4(self, ctx:DecafParser.Expr_arith4Context):
         print("SALIENDO DE exitExpr_arith4,",ctx)
         
@@ -389,17 +512,26 @@ class DecafPrueba(DecafListener):
             'dir': addr
         }
 
-    def exitExpr_parenthesis(self, ctx:DecafParser.Expr_parenthesisContext):
-        print("EN exitExpr_parenthesis", ctx)
-        right = ctx.getChild(1)
-        print("*"*200)
-        E = self.nodeCodes[right]
 
-        #print("AGREGANDO A",ctx,"EL CODIGO",E['codigo'])
-        self.nodeCodes[ctx] = {
-            'codigo': E['codigo'],
-            'dir': E['dir']
-        }
+    def enterExpr_parenthesis(self, ctx:DecafParser.Expr_parenthesisContext):
+        print()
+        print("EN enterExpr_parenthesis",ctx.getText(),ctx)
+        print("HIJO 2",ctx.getChild(1).getText(),ctx.getChild(1))
+
+        self.nodeCodes[ctx.expression()] = self.nodeCodes[ctx]
+        print("PANSANDOLE A",ctx.expression().getText(), self.nodeCodes[ctx.expression()])
+        print()
+
+
+
+    def exitExpr_parenthesis(self, ctx:DecafParser.Expr_parenthesisContext):
+        print("AQUI QUE PASA",ctx)
+        child = ctx.expression()
+        print("EXTRAYENGO EL HIJO",child)
+        E = self.nodeCodes[child]
+        print("QUE TIENE E",E)
+        self.nodeCodes[ctx] = E
+    
     def enterStatementWHILE(self, ctx:DecafParser.StatementWHILEContext):
         print("ENTRAMOS AL WHILE",ctx)
         self.ifCont+=1
@@ -464,6 +596,7 @@ class DecafPrueba(DecafListener):
             block1 = ctx.getChild(4)
             block2 = ctx.getChild(6)
             B = self.nodeCodes[expr]
+            print("Esto es B",B)
             S1 = self.nodeCodes[block1]
             S2 = self.nodeCodes[block2]
             code = B['codigo']+[B['true']]+S1['codigo']+['GOTO '+ S1['next']]+[B['false']] +S2['codigo']+[S1['next']]
@@ -482,6 +615,7 @@ class DecafPrueba(DecafListener):
             expr = ctx.expression()
             block = ctx.getChild(4)
             B = self.nodeCodes[expr]
+            print("Esto es B",B)
             S = self.nodeCodes[block]
             code = B['codigo'] + [B['true']] + S['codigo'] + [B['false']]
             print("*"*20)
@@ -503,7 +637,7 @@ class DecafPrueba(DecafListener):
         # si es un if normal tengo que crear un True y un next
         # Si es un if else tengo que crear un True y un False
         print("ENTRANDO AL IF",ctx)
-        print("TIENE ESTOS HIJOS",ctx.getChildCount())
+        #print("TIENE ESTOS HIJOS",ctx.getChildCount())
         #print("HIJO 0",ctx.getChild(0))
         #print("HIJO 1",ctx.getChild(1))
         #print("HIJO 2",ctx.getChild(2),ctx.getChild(2).getText(),type(ctx.getChild(2)))
@@ -514,14 +648,14 @@ class DecafPrueba(DecafListener):
         b_true = self.crearEtiqueta('IF','TRUE')
         b_next = self.crearEtiqueta('END_IF')
         
-        print(b_true)
-        print(b_next)
+        
         # Hijo 2 es expression
         
         # Hijo 4 es block
 
         if(len(ctx.children) > 5):
             expr = ctx.getChild(2)
+            print("LA EXPRESION QUE DA PROBLEMA",expr,expr.getChildCount(),expr.getText(),type(expr))
             blockIF = ctx.getChild(4)
             blockELSE = ctx.getChild(6)
             print("Es un IF else")
@@ -540,9 +674,8 @@ class DecafPrueba(DecafListener):
         else:
             expr = ctx.getChild(2)
             block = ctx.getChild(4)
-
             b_false = b_next
-        
+            
             self.nodeCodes[expr] = {
             'true':b_true,
             'false':b_false
@@ -551,15 +684,11 @@ class DecafPrueba(DecafListener):
             self.nodeCodes[block] = {
                 'next': b_next
             }
-        #self.nodeCodes[expr] = {
-        #    'true':b_true,
-        #    'false':b_false
-        #}
-        #self.nodeCodes[block] = {
-        #    'next': b_next
-        #}
-        #print("AGREGANDOLE NEXT A ",block)
-        #print("AGREGANDOLE TRUE Y FALSE A ",expr)
+
+            print("PASANDOLE A",expr.getText(),self.nodeCodes[expr])
+            
+            print("PASANDOLE A",block.getText(),self.nodeCodes[block])
+            
         print()
 
     
@@ -615,7 +744,7 @@ class DecafPrueba(DecafListener):
                 #print("Los statements ->>:",i,i.getText())
                 #print(self.nodeCodes[i])
                 code.extend(self.nodeCodes[i]['codigo'])
-            #print("EL CODE GENERADO",code)
+            print("EL CODE GENERADO",code)
             self.nodeCodes[ctx]['codigo'] = code
 
         elif(type(ctx.parentCtx) == DecafParser.StatementWHILEContext):
@@ -645,7 +774,7 @@ class DecafPrueba(DecafListener):
         print("HIJO 0",ctx.getChild(0),ctx.getChild(0).getText())
         print("HIJO 1",ctx.getChild(1),ctx.getChild(1).getText())
         print("HIJO 2",ctx.getChild(2),ctx.getChild(2).getText())
-        
+        print("BUSCANDO DONDE ENTRA",ctx)
         print("Datos",self.nodeCodes[ctx])
         # AHORITA TENGO Datos {'true': 'IF_TRUE_0', 'false': 'NEXT_S_0'}
         child = ctx.arith_op_third()
@@ -665,7 +794,8 @@ class DecafPrueba(DecafListener):
                 op = child.eq_op().getText()
 
             code = E1['codigo']+E2['codigo']+['IF '+E1['dir']+' '+op+' '+E2['dir']+' GOTO '+B['true']]+['GOTO '+B['false']]
-            #print(code)
+            print("CODIGO GENERADO")
+            print(code)
             B['codigo'] = code
 
         print("-"*20)
