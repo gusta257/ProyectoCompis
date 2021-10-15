@@ -153,13 +153,30 @@ class DecafPrueba(DecafListener):
     def enterParameter(self, ctx:DecafParser.ParameterContext):
         #AUN NO SE REVISA ESTO
         print("*"*100)
-        tipo = ctx.getChild(0).getChild(0).getText()
-        variable = ctx.getChild(1).getText()
-        self.table[self.scopeTemporal[-1]][2][variable] = TableItem(variable, tipo, 0, 0, params=True, scope=self.scopeTemporal[-1])
+        print("El parameter tiene estos hijos",ctx.getChildCount())
+        print("Hijo 0",ctx.getChild(0),ctx.getChild(0).getText())
+        print("Hijo 1",ctx.getChild(1),ctx.getChild(1).getText())
 
-        
 
-        self.nodeTypes[ctx] = tipo
+        if (ctx.getChildCount() == 2):
+            print("Param normal")
+            tipo = ctx.getChild(0).getChild(0).getText()
+            variable = ctx.getChild(1).getText()
+            size = self.sizes[tipo]
+            offsetAct = self.offsets[self.scopeTemporal[-1]][-1]
+            offset = self.offsets[self.scopeTemporal[-1]][-1]+size
+
+            self.table[self.scopeTemporal[-1]][2][variable] = TableItem(variable, tipo, offsetAct, size, params=True, scope=self.scopeTemporal[-1])
+            self.nodeTypes[ctx] = tipo
+            self.offsets[self.scopeTemporal[-1]].append(offset)
+        else:
+            # PARA PARAMETROS QUE SON ARRAY PERO LUEGO SE VERA ESO XD
+            tipo = ctx.getChild(0).getChild(0).getText()
+            variable = ctx.getChild(1).getText()
+            self.table[self.scopeTemporal[-1]][2][variable] = TableItem(variable, tipo, 0, 0, params=True, scope=self.scopeTemporal[-1])
+            self.nodeTypes[ctx] = tipo
+
+        print()
 
     def enterVarDeclaration(self, ctx:DecafParser.VarDeclarationContext):
         # El hijo 0 de un varDeclaration es un varType y el hijo 0 de ese varType es el mero tipo
@@ -183,8 +200,6 @@ class DecafPrueba(DecafListener):
 
         else:
             size = self.sizes[tipo]
-            
-
             offsetAct = self.offsets[self.scopeTemporal[-1]][-1]
             offset = self.offsets[self.scopeTemporal[-1]][-1]+size
             #print("El offset actual", self.offsets[self.scopeTemporal[-1]][-1])
@@ -757,6 +772,19 @@ class DecafPrueba(DecafListener):
                 code.extend(self.nodeCodes[i]['codigo'])
             print("EL CODE GENERADO",code)
             self.nodeCodes[ctx]['codigo'] = code
+        else:
+            print("No es if ni while")
+            statements = ctx.statement()
+            code = []
+            for st in statements:
+                code.extend(self.nodeCodes[st]['codigo'])
+            print(code)
+        
+            self.nodeCodes[ctx] = {
+                'dir': [],
+                'codigo': code
+            }
+
         print()
 
     def enterExpr_not(self, ctx:DecafParser.Expr_notContext):
@@ -801,6 +829,55 @@ class DecafPrueba(DecafListener):
         print("-"*20)
         print()
 
+    def exitMethodDeclaration(self, ctx:DecafParser.MethodDeclarationContext):
+        print("Saliendo de un method decl",ctx)
+        nombre = ctx.ID().getText()
+        codigo = self.nodeCodes[ctx.block()] 
+        code = ['DEF '+nombre+":"]+codigo['codigo']+['EXIT DEF '+nombre]
+        print("*"*20)
+        
+        print("CODIGO INTERMEDIO")
+        for i in code:
+            print(i)
+     
+        print("*"*20)
+        self.nodeCodes[ctx] = {
+            'codigo' : code
+        }
+    
+    def exitStatementRETURN(self, ctx:DecafParser.StatementRETURNContext):
+        expr = ctx.expression()
+        code = ['RETURN ' + self.nodeCodes[expr]['dir']]
+        print("EL CODE RETURN",code)
+
+        self.nodeCodes[ctx] = {
+            'codigo':code
+        }
+
+    def exitExpr_mcall(self, ctx:DecafParser.Expr_mcallContext):
+        expr = ctx.methodCall()
+        print(expr.getText())
+        self.nodeCodes[ctx] = self.nodeCodes[expr]
+        print()
+
+    def exitMethodCall(self, ctx:DecafParser.MethodCallContext):
+        expr = ctx.expression()
+        nombre = ctx.ID().getText()
+        hijos = len(expr)
+        code = []
+        for exp in expr:
+            code.extend(['PARAM '+self.nodeCodes[exp]['dir']])
+
+        call = 'CALL ' + nombre + str(hijos)
+        code.append(call)
+        print("EL CODE EXIRT MEHTOD CALL", code)
+        self.nodeCodes[ctx] = {
+            'codigo' : code,
+            'dir': 'R'
+        }
+    def exitStatementMETHODCALL(self, ctx:DecafParser.StatementMETHODCALLContext):
+        child = ctx.methodCall()
+        self.nodeCodes[ctx] = self.nodeCodes[child]
     
 
 def main(argv):
