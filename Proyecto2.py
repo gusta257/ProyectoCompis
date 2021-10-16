@@ -82,7 +82,7 @@ class DecafPrueba(DecafListener):
             return f
 
 
-    def TopeGet(self, id):
+    def TopeGet(self, id, arr=None, struct=None):
         # Para este metodo
         # Se le aplica a una variable
         # Con esta variable, voy a mi tabla de simbolos a sacar s
@@ -91,22 +91,47 @@ class DecafPrueba(DecafListener):
         # Si es variable global creo la direccion G[offset]
         # Si es variable local creo la direccion L[Offset]
         # Regreso la address G[0], G[4], L[8].... ETC
-        info = self.getTableInfo(id)
-        #print(info.id, info.offset, info.scope) 
-        if(info.scope == "global"):
-            dir = 'G['+str(info.offset)+']'
-            return dir
+        if(arr and struct):
+            info = self.getTableInfo(id,struct)
+            #print(info.id, info.offset, info.scope) 
+            if(info.scope == "global"):
+                dir = 'G['+str(arr)+']'
+                return dir
+            else:
+                dir = 'L['+str(arr)+']'
+                return dir
+        elif(arr):
+            info = self.getTableInfo(id)
+            #print(info.id, info.offset, info.scope) 
+            if(info.scope == "global"):
+                dir = 'G['+str(arr)+']'
+                return dir
+            else:
+                dir = 'L['+str(arr)+']'
+                return dir
         else:
-            dir = 'L['+str(info.offset)+']'
-            return dir
+            info = self.getTableInfo(id)
+            #print(info.id, info.offset, info.scope) 
+            if(info.scope == "global"):
+                dir = 'G['+str(info.offset)+']'
+                return dir
+            else:
+                dir = 'L['+str(info.offset)+']'
+                return dir
             
-    def getTableInfo(self, id):
+    def getTableInfo(self, id, struct=False):
+        print("BUSCANDO",id)
         encontrado = False
         for k in reversed(list(self.table.keys())):
-            if((encontrado == False) and (k in self.scopeTemporal)):
+            #print("Llave",k)
+            #print("El bool",struct)
+            if(((encontrado == False) and (k in self.scopeTemporal)) or ((encontrado == False) and (struct))):
                 for key, value in self.table[k][2].items():
+                    #print("EL ID",id)
+                    #print("EL VALIE",value.id)
                     if (id == value.id):
                         encontrado = True
+                        
                         return value
 
     
@@ -137,18 +162,35 @@ class DecafPrueba(DecafListener):
             print("-"*15)
         print("Salgo del programa\n")
 
+
+    def printTableInfo(self):
+        print("-"*15)
+        for key,value in self.table.items():
+            
+            print("Scope:", key)
+            print("Padre:",value[0])
+            print("Tipo:",value[1])
+
+            for k,v in value[2].items():
+                print("     Variable:", v.id,"Tipo:",  v.type,"Offset:", v.offset,"Tamanio:", v.size,"Es parametro?:", v.params,"Es array?", v.array)
+            print("-"*15)
+    
+        
+
     def enterMethodDeclaration(self, ctx:DecafParser.MethodDeclarationContext):
         # Para manejo de Scopes
+        print("/"*20)
         tipo = ctx.getChild(0).getText()
         nombre = ctx.getChild(1).getText()
         self.scopeTemporal.append(nombre)
+        print("AGREGUE EL SCOPE", nombre)
+        print("ASI VA",self.scopeTemporal)
+        print("SU PADRE VA A SER",self.scopeTemporal[-2])
         self.table[self.scopeTemporal[-1]] = [self.scopeTemporal[-2],tipo,{}]
         self.offsets[self.scopeTemporal[-1]] = [0]
         self.nodeTypes[ctx] = tipo
         print("El ctx del metodo",nombre,"es:",ctx,"\n")
 
-    def exitMethodDeclaration(self, ctx:DecafParser.MethodDeclarationContext):
-        self.scopeTemporal.pop()
 
     def enterParameter(self, ctx:DecafParser.ParameterContext):
         #AUN NO SE REVISA ESTO
@@ -171,12 +213,38 @@ class DecafPrueba(DecafListener):
             self.offsets[self.scopeTemporal[-1]].append(offset)
         else:
             # PARA PARAMETROS QUE SON ARRAY PERO LUEGO SE VERA ESO XD
+            # TODO SIZE DE PARAMS
             tipo = ctx.getChild(0).getChild(0).getText()
             variable = ctx.getChild(1).getText()
             self.table[self.scopeTemporal[-1]][2][variable] = TableItem(variable, tipo, 0, 0, params=True, scope=self.scopeTemporal[-1])
             self.nodeTypes[ctx] = tipo
 
         print()
+    
+    def enterStructDeclaration(self, ctx:DecafParser.StructDeclarationContext):
+        print("Entando a un Struct dcl")
+        nombre = ctx.getChild(0).getText()+ctx.getChild(1).getText()
+        self.scopeTemporal.append(nombre)
+        print("Agregando scope",nombre)
+        print("ASI VA",self.scopeTemporal)
+        print("SU PADRE VA A SER",self.scopeTemporal[-2])
+        self.table[self.scopeTemporal[-1]] = [self.scopeTemporal[-2],'struct',{}]
+        self.offsets[self.scopeTemporal[-1]] = [0]
+        #self.nodeTypes[ctx] = tipo
+        print("El ctx del metodo",nombre,"es:",ctx,"\n")
+
+    def exitStructDeclaration(self, ctx:DecafParser.StructDeclarationContext):
+        # AQUI DEBO DE SUMAR LOS SIZES DE TODO LO DE ADENTRO
+        tabla = self.table[self.scopeTemporal[-1]]
+        nombre = ctx.getChild(0).getText()+ctx.getChild(1).getText()
+        print(tabla)
+        size = 0
+        for k,v in tabla[2].items():
+            print ("Variables del struct",v.id,v.size)
+            size += v.size
+        print("El tamano del stuct",nombre,"es",size)
+        self.sizes[nombre] = size
+        self.scopeTemporal.pop()
 
     def enterVarDeclaration(self, ctx:DecafParser.VarDeclarationContext):
         # El hijo 0 de un varDeclaration es un varType y el hijo 0 de ese varType es el mero tipo
@@ -185,6 +253,9 @@ class DecafPrueba(DecafListener):
         variable = ctx.getChild(1).getText()
         tipo = ctx.getChild(0).getText()
         
+        print("La variable es",variable)
+        print("De tipo",tipo)
+
         if(ctx.NUM()!=None):
             size = self.sizes[tipo]
             cantidad = int(ctx.getChild(3).getText())
@@ -199,20 +270,40 @@ class DecafPrueba(DecafListener):
             self.offsets[self.scopeTemporal[-1]].append(offset)
 
         else:
-            size = self.sizes[tipo]
-            offsetAct = self.offsets[self.scopeTemporal[-1]][-1]
-            offset = self.offsets[self.scopeTemporal[-1]][-1]+size
-            #print("El offset actual", self.offsets[self.scopeTemporal[-1]][-1])
-            #print("El size de la variable", size)
-            #print("El offset luego de la variable", offset)
+            if 'struct' in tipo:
+                print("Es un struct")
+                size = self.sizes[tipo]
+                offsetAct = self.offsets[self.scopeTemporal[-1]][-1]
+                offset = self.offsets[self.scopeTemporal[-1]][-1]+size
+                print("SIZE DE STRUCT",size)
+                self.table[self.scopeTemporal[-1]][2][variable] = TableItem(variable, tipo, offsetAct, size, scope=self.scopeTemporal[-1])
+                self.offsets[self.scopeTemporal[-1]].append(offset)
+            else:
+                size = self.sizes[tipo]
+                offsetAct = self.offsets[self.scopeTemporal[-1]][-1]
+                offset = self.offsets[self.scopeTemporal[-1]][-1]+size
+                #print("El offset actual", self.offsets[self.scopeTemporal[-1]][-1])
+                #print("El size de la variable", size)
+                #print("El offset luego de la variable", offset)
 
-            self.table[self.scopeTemporal[-1]][2][variable] = TableItem(variable, tipo, offsetAct, size, scope=self.scopeTemporal[-1])
-            self.offsets[self.scopeTemporal[-1]].append(offset)
+                self.table[self.scopeTemporal[-1]][2][variable] = TableItem(variable, tipo, offsetAct, size, scope=self.scopeTemporal[-1])
+                self.offsets[self.scopeTemporal[-1]].append(offset)
 
 
         
         self.nodeTypes[ctx] = 'void'
         print("El ctx de la declaracion de la variable",variable,"es:",ctx,"\n")
+        #print("-"*15)
+        #for key,value in self.table.items():
+        #    
+        #    print("Scope:", key)
+        #    print("Padre:",value[0])
+        #    print("Tipo:",value[1])
+
+        #    for k,v in value[2].items():
+        #        print("     Variable:", v.id,"Tipo:",  v.type,"Offset:", v.offset,"Tamanio:", v.size,"Es parametro?:", v.params,"Es array?", v.array)
+        #    print("-"*15)
+        print()
         
 
 
@@ -252,6 +343,13 @@ class DecafPrueba(DecafListener):
 
     def exitStatementLOCATION(self, ctx:DecafParser.StatementLOCATIONContext):
         print("El ctx de un statement location (asignacion) es:", ctx)
+        
+            
+
+        print("Y TIENE ESTOS HIJSO",ctx.getChildCount())
+        print("HIJO  0",ctx.getChild(0))
+        print("HIJO  1",ctx.getChild(1))
+        print("HIJO  2",ctx.getChild(2))
         #print("Tiene una cantidad de hijos", ctx.getChildCount())
 
         left = ctx.location()               # Seria como variable a
@@ -268,12 +366,26 @@ class DecafPrueba(DecafListener):
         #print("*"*20)
 
         E = self.nodeCodes[right]
+        L = self.nodeCodes[left]
+        print("QUE ES E",E)
+        if(ctx.location().location()):
+            print("ENTRAMOS AQUI CUANDO ES STRUCT",ctx.getText())
+            print("QUE ES E",E)
+            print("QUE ES L",L)
+            code = L['codigo']+E['codigo']+[L['dir'] +' = ' +E['dir']]
+            print("EL CODE GENERADO EN EL STATLOCATION",code)
+            self.nodeCodes[ctx] = {
+                'dir': [],
+                'codigo': code
+            }
 
-        if("[" not in left.getText()):
+        elif("[" not in left.getText()):
+            print("Asignacion a una var id")
             id = left.getText()
             # hacer top get
             # E['code'] + [topget + ' = ' + E['addr']] 
             top = self.TopeGet(id)
+            print("QUE TIENE E",E)
             code = E['codigo'] + [top+' = '+E['dir']]
             print("*"*20)
             print("CODIGO INTERMEDIO")
@@ -287,7 +399,28 @@ class DecafPrueba(DecafListener):
             }
 
         else:
+            print("*"*50)
             print("Es array")
+            print("QUE TIENE MI LOCATION",L)
+            print("QUE TIENE MI EXPRESSION",E)
+
+            id = left.ID().getText()
+            print("EL ID ES",id)
+            top = self.TopeGet(id,L['dir'])
+            print("ESTO ES MI TOP",top)
+            
+            code = L['codigo'] + [top +' = ' + E['dir'] ]
+            print(code)
+            print("*"*20)
+            print("CODIGO INTERMEDIO")
+            for i in code:
+                print(i)
+            print("*"*20)
+            ##print("AGREGANDO A",ctx,"EL CODIGO",code)
+            self.nodeCodes[ctx] = {
+                'dir': E['dir'],
+                'codigo': code
+            }
         
         print("Saliendo de un statement \n")
 
@@ -332,32 +465,195 @@ class DecafPrueba(DecafListener):
     def exitExpr_loc(self, ctx:DecafParser.Expr_locContext):
         yo = ctx
         child = ctx.location()
-        print("exitExpr_loc")
-        print("*"*20)
-        print("yo",yo)
-        print("BUSCANDO",child)
-        print("*"*20)
-        self.nodeCodes[ctx] = self.nodeCodes[child]
+        if("[" not in child.getText() ):
+            print("exitExpr_loc")
+            print("*"*20)
+            print("yo",yo)
+            print("BUSCANDO",child.getText())
+            print("*"*20)
+            print("EN EL EXIT EXPR MANDANDO",self.nodeCodes[child])
+            self.nodeCodes[ctx] = self.nodeCodes[child]
+        else:
+            id = child.ID().getText()
+            L = self.nodeCodes[child]
+            top = self.TopeGet(id,L['dir'])
+            self.nodeCodes[ctx] = {
+                'dir': top,
+                'codigo': self.nodeCodes[child]['codigo']
+            }
+
+    # Enter a parse tree produced by DecafParser#location.
+    def enterLocation(self, ctx:DecafParser.LocationContext):
+        print("enterLocation",ctx.getText())
+        # verificacion de struct si no es estruct se sale
+        # si es struct sigue
+        if ctx.location() is None:
+            print("Saliendo porque no es Struct")
+            print()
+            return
+
+        # Si tiene mas de un un chil es array
+        #esArray = ctx.getChild(2).getChild(2)
+        print("Tiene estos hijos",ctx.getChildCount())
+        print("hijos 0",ctx.getChild(0))
+        print("hijos 1",ctx.getChild(1))
+        print("hijos 2",ctx.getChild(2),ctx.getChild(2).getChildCount(),ctx.getChild(2).getText())
+        
+        print("EL HIJO 2",ctx.getChild(2).ID())
+        name = str(ctx.getChild(2).ID())
+        print("-"*15)
+        
+        v = self.getTableInfo(name,True)
+        esArray = v.array
+        print("Validacion si es array o no",esArray)
+        #print("hijos",ctx.getChildCount())
+        if(esArray):
+            print("ES ARRAY")
+        else:
+            print("es Var")
+            print('------------ LOCATION ENTRADA -------------------')
+            name = ctx.getChild(0).getText()
+            print("EL ID ES",name)
+            #self.printTableInfo()
+            v = self.getTableInfo(name,True)
+            tipo = v.type
+            print("Variable:", v.id,"Tipo:",  tipo)
+
+            total = self.IterateChildren(ctx.location(), tipo)
+            print("EL TOTAL",total)
+
+            temp = self.crearTemporal()
+            offset = v.offset
+            code = f'{temp} = {offset} + ' + total['dir']
+            print("EL CODE DEL LOC STRUCT ITER",code)
+            print("Le voy a meter al topget variable",name,"y temp",temp)
+            topget = self.TopeGet(name,temp,struct = True)
+            print("El topeget de",topget)
+            self.nodeCodes[ctx] = {
+                'codigo': total['codigo'] + [code],
+                'dir': topget
+            }
+            print(ctx,self.nodeCodes[ctx])
+            
+            
+            
+
+            print('------------ LOCATION SALIDA -------------------')
+    
+    def IterateChildren(self, location, parent_type):
+        print("EL LOC",location,location.getText())
+        #esArray = location.getChild(2)
+        try:
+            name = str(location.getChild(2).ID())
+            print("-"*15)
+            v = self.getTableInfo(name,True)
+            esArray = v.array
+            print("Validacion si es array o no en el iterate",esArray)
+        except:
+            esArray = location.getChild(2)
+            print("Validacion si es array o no en el iterate final",esArray)
+
+        if esArray:
+            print("Array")
+            # CASO BASE
+        else:
+            if location.location() is None:
+                # Si es el hijo mas profundo del location
+                id = location.getChild(0).getText()
+                print("El id ultimo",id)
+                print("El papa",parent_type)
+                child = self.getTableInfo(id,True)
+                
+                num = child.offset
+                
+                total = {
+                    'codigo': [],
+                    'dir': str(num)
+                }
+                self.nodeCodes[location] = total
+                print("Los datos de",location.getText(),total)
+                return total
+            print('----------------------------------------------------------------------------------------')
+            id = location.getChild(0).getText()
+            
+            child_type = None
+
+            child = self.getTableInfo(id,True)
+            child_type = child.type
+            num = self.IterateChildren(location.location(), child_type)
+
+            temp = self.crearTemporal()
+            code = [temp + ' = ' + str(num['dir']) + ' + ' + str(child.offset)]
+            total = {
+                'codigo': num['codigo'] + code,
+                'dir': temp
+            }
+            self.nodeCodes[location] = total
+            return  total
+
 
     def exitLocation(self, ctx:DecafParser.LocationContext):
-        #AQUI OBTENGO EL CTX DE LA VARIABLEEE
-        #print("-"*20)
-        #print("En el exitLocation")
-        #print("Yo",ctx)
-        #print("Yo",ctx.getText())
-        #print(ctx.getChild(0))
-        variable = ctx.getText()
-        #print("Encontro el var_id",variable)
+        print("PARA",ctx,ctx.getText(),ctx not in self.nodeCodes.keys())
+        if ctx not in self.nodeCodes.keys():
+            #AQUI OBTENGO EL CTX DE LA VARIABLEEE
+            print("-"*20)
+            print("En el exitLocation")
+            #print("Yo",ctx)
+            #print("Yo",ctx.getText())
+            print("Hijo 0",ctx.getChild(0))
+            print("Hijo 1",ctx.getChild(1))
+            print("Hijo 2",ctx.getChild(2))
+            print("Hijo 3",ctx.getChild(3))
+            esArray = ctx.getChild(2)
+            if(esArray):
+                print("Es Arrya")
+                
+                literal = self.nodeCodes[ctx.expression()]
+                name = ctx.ID().getText()
 
-        addr = self.TopeGet(variable)
-        #print("Lo que devuelve el topeget es",addr)
-        #print("-"*20)
+                print("name",name)
+                print("literla",literal)
+                v = self.getTableInfo(name)
+                print("Variable:", v.id,"Tipo:",  v.type,"Offset:", v.offset,"Tamanio:", v.size,"Es parametro?:", v.params,"Es array?", v.array)
+                type = v.type
+                size = self.sizes[type]
+                
+                t = self.crearTemporal()
+                addr = self.crearTemporal()
+
+                valor = literal['dir'] + ' * ' + str(size)
+
+                print("EL VALOR ES",valor)
+                first_code = [t +' = ' + valor]
+                print("El first code es", first_code)
+                second_code = [addr + ' = ' + str(size) + ' + '+t]
+                print("El second code es", second_code)
+                code = first_code+second_code
+                print("El code",code)
+                for i in code:
+                    print(i)
+                print("Codigo de array",code)
+
+                self.nodeCodes[ctx] = {
+                    'dir': addr,
+                    'codigo': code
+                }
+                print("EN EL exitLocation DEL ARRAY MANDO ASD",self.nodeCodes[ctx])
+
+            else:
+                variable = ctx.getText()
+                print("Encontro el var_id",variable)
+                addr = self.TopeGet(variable)
+                print("Lo que devuelve el topeget es",addr)
+                print("-"*20)
+
+                
+                self.nodeCodes[ctx] = {
+                    'codigo': [],
+                    'dir': addr
+                }
 
         
-        self.nodeCodes[ctx] = {
-            'codigo': [],
-            'dir': addr
-        }
         
     def enterExpr_arith2(self, ctx:DecafParser.Expr_arith2Context):
         # GENERAR ETIQUETAS Y ASIGNARLAS AL HIJO
@@ -589,9 +885,9 @@ class DecafPrueba(DecafListener):
         for i in code:
             print(i)
      
-        #self.nodeCodes[ctx] = {
-        #    'codigo': code
-        #}
+        self.nodeCodes[ctx] = {
+            'codigo': code
+        }
         print("*"*20)
 
 
@@ -736,7 +1032,7 @@ class DecafPrueba(DecafListener):
         print()
 
     def exitBlock(self, ctx:DecafParser.BlockContext):
-        print("salgo al block",ctx)
+        print("salgo del block",ctx)
         if (type(ctx.parentCtx) == DecafParser.StatementIFContext):
             
             
@@ -767,18 +1063,23 @@ class DecafPrueba(DecafListener):
             statements = ctx.statement()
             code = []
             for i in statements:
-                print("Los statements ->>:",i,i.getText())
-                print(self.nodeCodes[i])
+                #print("Los statements ->>:",i,i.getText())
+                #print(self.nodeCodes[i])
                 code.extend(self.nodeCodes[i]['codigo'])
             print("EL CODE GENERADO",code)
             self.nodeCodes[ctx]['codigo'] = code
         else:
             print("No es if ni while")
             statements = ctx.statement()
+            print("Los statements",statements)
             code = []
             for st in statements:
+                print(ctx.start.line)
+                print("PARA EL STATEMENT",st,type(st))
+                print("Los statements ->>:",st,st.getText())
+                print("ESTO ES",self.nodeCodes[st])
                 code.extend(self.nodeCodes[st]['codigo'])
-            print(code)
+            print("EL CODE GENERADO EN EL BLOCK",code)
         
             self.nodeCodes[ctx] = {
                 'dir': [],
@@ -844,9 +1145,11 @@ class DecafPrueba(DecafListener):
         self.nodeCodes[ctx] = {
             'codigo' : code
         }
+        self.scopeTemporal.pop()
     
     def exitStatementRETURN(self, ctx:DecafParser.StatementRETURNContext):
         expr = ctx.expression()
+        print("EN EL RETURN QUE TIENE",self.nodeCodes[expr])
         code = ['RETURN ' + self.nodeCodes[expr]['dir']]
         print("EL CODE RETURN",code)
 
@@ -868,7 +1171,7 @@ class DecafPrueba(DecafListener):
         for exp in expr:
             code.extend(['PARAM '+self.nodeCodes[exp]['dir']])
 
-        call = 'CALL ' + nombre + str(hijos)
+        call = 'CALL ' + nombre + ' '+str(hijos)
         code.append(call)
         print("EL CODE EXIRT MEHTOD CALL", code)
         self.nodeCodes[ctx] = {
