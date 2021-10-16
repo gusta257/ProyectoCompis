@@ -4,33 +4,6 @@ from DecafLexer import DecafLexer
 from DecafParser import DecafParser
 from DecafListener import DecafListener
 
-
-class SizeOffsets():
-    def __init__(self):
-        self.int = 4
-        self.bool = 1
-        self.char = 1
-        self.void = 0
-
-    def getSize(self, type):
-        if type == 'int':
-            return self.int
-        elif type == 'char':
-            return self.char
-        elif type == 'boolean':
-            return self.bool
-        elif type == 'void':
-            return self.void
-    
-    def sizeArray(self, size, type):
-        if type == 'int':
-            return self.int * size
-        elif type == 'char':
-            return self.char * size
-        elif type == 'boolean':
-            return self.bool * size
-        elif type == 'void':
-            return self.void * size
  
 class TableItem():
     def __init__(self, id, type, offset, size, params=False, scope="global", value=None,  array=False):
@@ -62,6 +35,7 @@ class DecafPrueba(DecafListener):
             "char": 1,
             "void": 0
         }
+        self.codigoIntermedio = []
 
     
 
@@ -149,7 +123,7 @@ class DecafPrueba(DecafListener):
         #print("Tabla de variables final")
         #for k,v in self.nodeTypes.items():
         #    print(k,",",v)
-
+        '''
         print("-"*15)
         for key,value in self.table.items():
             
@@ -160,8 +134,8 @@ class DecafPrueba(DecafListener):
             for k,v in value[2].items():
                 print("     Variable:", v.id,"Tipo:",  v.type,"Offset:", v.offset,"Tamanio:", v.size,"Es parametro?:", v.params,"Es array?", v.array)
             print("-"*15)
-        print("Salgo del programa\n")
-
+        #print("salgo del programa\n")
+        '''
         declar = ctx.declaration()
         code = []
 
@@ -170,6 +144,12 @@ class DecafPrueba(DecafListener):
             if(type(child.getChild(0))  == DecafParser.MethodDeclarationContext):
                 #print()
                 code.extend(self.nodeCodes[child]['codigo'])
+        
+        textfile = open("Output.txt","w")
+    
+        for element in code:
+            textfile.write(str(element)+"\n")
+        textfile.close()
         
         print("*"*20)
 
@@ -197,25 +177,25 @@ class DecafPrueba(DecafListener):
 
     def enterMethodDeclaration(self, ctx:DecafParser.MethodDeclarationContext):
         # Para manejo de Scopes
-        print("/"*20)
+        #print("/"*20)
         tipo = ctx.getChild(0).getText()
         nombre = ctx.getChild(1).getText()
         self.scopeTemporal.append(nombre)
-        print("AGREGUE EL SCOPE", nombre)
-        print("ASI VA",self.scopeTemporal)
-        print("SU PADRE VA A SER",self.scopeTemporal[-2])
+        #print("AGREGUE EL SCOPE", nombre)
+        #print("ASI VA",self.scopeTemporal)
+        #print("SU PADRE VA A SER",self.scopeTemporal[-2])
         self.table[self.scopeTemporal[-1]] = [self.scopeTemporal[-2],tipo,{}]
         self.offsets[self.scopeTemporal[-1]] = [0]
         self.nodeTypes[ctx] = tipo
-        print("El ctx del metodo",nombre,"es:",ctx,"\n")
+        #print("El ctx del metodo",nombre,"es:",ctx,"\n")
 
 
     def enterParameter(self, ctx:DecafParser.ParameterContext):
         #AUN NO SE REVISA ESTO
-        print("*"*100)
-        print("El parameter tiene estos hijos",ctx.getChildCount())
-        print("Hijo 0",ctx.getChild(0),ctx.getChild(0).getText())
-        print("Hijo 1",ctx.getChild(1),ctx.getChild(1).getText())
+        #print("*"*100)
+        #print("El parameter tiene estos hijos",ctx.getChildCount())
+        #print("Hijo 0",ctx.getChild(0),ctx.getChild(0).getText())
+        #print("Hijo 1",ctx.getChild(1),ctx.getChild(1).getText())
 
 
         if (ctx.getChildCount() == 2):
@@ -249,7 +229,7 @@ class DecafPrueba(DecafListener):
         self.table[self.scopeTemporal[-1]] = [self.scopeTemporal[-2],'struct',{}]
         self.offsets[self.scopeTemporal[-1]] = [0]
         #self.nodeTypes[ctx] = tipo
-        print("El ctx del metodo",nombre,"es:",ctx,"\n")
+        #print("El ctx del metodo",nombre,"es:",ctx,"\n")
 
     def exitStructDeclaration(self, ctx:DecafParser.StructDeclarationContext):
         # AQUI DEBO DE SUMAR LOS SIZES DE TODO LO DE ADENTRO
@@ -310,7 +290,7 @@ class DecafPrueba(DecafListener):
 
         
         self.nodeTypes[ctx] = 'void'
-        print("El ctx de la declaracion de la variable",variable,"es:",ctx,"\n")
+        #print("El ctx de la declaracion de la variable",variable,"es:",ctx,"\n")
         #print("-"*15)
         #for key,value in self.table.items():
         #    
@@ -327,40 +307,40 @@ class DecafPrueba(DecafListener):
 
     def exitInt_literal(self, ctx:DecafParser.Int_literalContext):
         
-        print("El ctx de un INT literal es:", ctx.getText(), ctx)
+        #print("El ctx de un INT literal es:", ctx.getText(), ctx)
         #print("El valor del INT literal es:",ctx.NUM())
         self.nodeTypes[ctx] = 'int'
         self.nodeCodes[ctx] = {
             'codigo': [],
             'dir': ctx.getText()
         }
-        print("Saliendo del Int Literal\n")
+        #print("saliendo del Int Literal\n")
 
     def exitBool_literal(self, ctx:DecafParser.Bool_literalContext):
         
-        print("El ctx de un bool literal es:", ctx.getText(), ctx)
+        #print("El ctx de un bool literal es:", ctx.getText(), ctx)
         #print("El valor del INT literal es:",ctx.NUM())
         self.nodeTypes[ctx] = 'boolean'
         self.nodeCodes[ctx] = {
             'codigo': [],
             'dir': ctx.getText()
         }
-        print("Saliendo del BOOL Literal\n")
+        #print("saliendo del BOOL Literal\n")
 
     def exitChar_literal(self, ctx:DecafParser.Char_literalContext):
         
-        print("El ctx de un char literal es:", ctx.getText(), ctx)
+        #print("El ctx de un char literal es:", ctx.getText(), ctx)
         #print("El valor del INT literal es:",ctx.NUM())
         self.nodeTypes[ctx] = 'char'
         self.nodeCodes[ctx] = {
             'codigo': [],
             'dir': ctx.getText()
         }
-        print("Saliendo del CHAR Literal\n")
+        #print("saliendo del CHAR Literal\n")
 
 
     def exitStatementLOCATION(self, ctx:DecafParser.StatementLOCATIONContext):
-        print("El ctx de un statement location (asignacion) es:", ctx)
+        #print("El ctx de un statement location (asignacion) es:", ctx)
         
             
 
@@ -441,7 +421,7 @@ class DecafPrueba(DecafListener):
                 'codigo': code
             }
         
-        print("Saliendo de un statement \n")
+        #print("saliendo de un statement \n")
 
 
     def exitLiteral(self, ctx:DecafParser.LiteralContext):
@@ -507,7 +487,7 @@ class DecafPrueba(DecafListener):
         # verificacion de struct si no es estruct se sale
         # si es struct sigue
         if ctx.location() is None:
-            print("Saliendo porque no es Struct")
+            #print("saliendo porque no es Struct")
             print()
             return
 
@@ -803,7 +783,7 @@ class DecafPrueba(DecafListener):
         print("*"*100)
 
     def exitExpr_arith4(self, ctx:DecafParser.Expr_arith4Context):
-        print("SALIENDO DE exitExpr_arith4,",ctx)
+        #print("salIENDO DE exitExpr_arith4,",ctx)
         
         left = ctx.getChild(0)
         sign = ctx.getChild(1).getText()
@@ -818,7 +798,7 @@ class DecafPrueba(DecafListener):
         }
         #print("Object",self.code_nodes[ctx])
     def exitExpr_arith5(self, ctx:DecafParser.Expr_arith5Context):
-        print("SALIENDO DE exitExpr_arith5,",ctx)
+        #print("salIENDO DE exitExpr_arith5,",ctx)
         
         left = ctx.getChild(0)
         sign = ctx.getChild(1).getText()
@@ -884,7 +864,7 @@ class DecafPrueba(DecafListener):
             }
 
     def exitStatementWHILE(self, ctx:DecafParser.StatementWHILEContext):
-        print("Saliendo del WHILE",ctx)
+        #print("saliendo del WHILE",ctx)
         expr = ctx.expression()
         block = ctx.getChild(4)
         B = self.nodeCodes[expr]
@@ -913,7 +893,7 @@ class DecafPrueba(DecafListener):
     def exitStatementIF(self, ctx:DecafParser.StatementIFContext):
     
         print("#"*20)
-        print("SALIENDO DE UN IF")
+        #print("salIENDO DE UN IF")
         if(len(ctx.children) > 5):
             #ELSE
             #   B.codigo
@@ -1051,7 +1031,7 @@ class DecafPrueba(DecafListener):
         print()
 
     def exitBlock(self, ctx:DecafParser.BlockContext):
-        print("salgo del block",ctx)
+        #print("salgo del block",ctx)
         if (type(ctx.parentCtx) == DecafParser.StatementIFContext):
             
             
@@ -1150,7 +1130,7 @@ class DecafPrueba(DecafListener):
         print()
 
     def exitMethodDeclaration(self, ctx:DecafParser.MethodDeclarationContext):
-        print("Saliendo de un method decl",ctx)
+        #print("saliendo de un method decl",ctx)
         nombre = ctx.ID().getText()
         codigo = self.nodeCodes[ctx.block()] 
         code = ['DEF '+nombre+":"]+codigo['codigo']+['EXIT DEF '+nombre]
@@ -1221,8 +1201,9 @@ class DecafPrueba(DecafListener):
                 self.nodeCodes[ctx] = self.nodeCodes[ctx.getChild(0)]
     
 
-def main(argv):
-    input_stream = FileStream(argv[1])
+def main(path):
+    input_stream = FileStream(path)
+    print(path)
     lexer = DecafLexer(input_stream)
     stream = CommonTokenStream(lexer)
     parser = DecafParser(stream)
@@ -1232,6 +1213,7 @@ def main(argv):
     walker.walk(prueba, tree)
  
 if __name__ == '__main__':
+    
     main(sys.argv)
 
 '''
