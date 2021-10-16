@@ -162,6 +162,22 @@ class DecafPrueba(DecafListener):
             print("-"*15)
         print("Salgo del programa\n")
 
+        declar = ctx.declaration()
+        code = []
+
+        for child in declar:
+            #print("HIJOS",child,type(child.getChild(0)))
+            if(type(child.getChild(0))  == DecafParser.MethodDeclarationContext):
+                #print()
+                code.extend(self.nodeCodes[child]['codigo'])
+        
+        print("*"*20)
+
+        for i in code:
+            print(i)
+
+        print("*"*20)
+
 
     def printTableInfo(self):
         print("-"*15)
@@ -174,6 +190,8 @@ class DecafPrueba(DecafListener):
             for k,v in value[2].items():
                 print("     Variable:", v.id,"Tipo:",  v.type,"Offset:", v.offset,"Tamanio:", v.size,"Es parametro?:", v.params,"Es array?", v.array)
             print("-"*15)
+
+    
     
         
 
@@ -408,8 +426,9 @@ class DecafPrueba(DecafListener):
             print("EL ID ES",id)
             top = self.TopeGet(id,L['dir'])
             print("ESTO ES MI TOP",top)
+            print("ESTA ES L",L)
             
-            code = L['codigo'] + [top +' = ' + E['dir'] ]
+            code = L['codigo'] +E['codigo']+ [top +' = ' + E['dir'] ]
             print(code)
             print("*"*20)
             print("CODIGO INTERMEDIO")
@@ -596,14 +615,14 @@ class DecafPrueba(DecafListener):
         print("PARA",ctx,ctx.getText(),ctx not in self.nodeCodes.keys())
         if ctx not in self.nodeCodes.keys():
             #AQUI OBTENGO EL CTX DE LA VARIABLEEE
-            print("-"*20)
-            print("En el exitLocation")
+            #print("-"*20)
+            #print("En el exitLocation")
             #print("Yo",ctx)
             #print("Yo",ctx.getText())
-            print("Hijo 0",ctx.getChild(0))
-            print("Hijo 1",ctx.getChild(1))
-            print("Hijo 2",ctx.getChild(2))
-            print("Hijo 3",ctx.getChild(3))
+            #print("Hijo 0",ctx.getChild(0))
+            #print("Hijo 1",ctx.getChild(1))
+            #print("Hijo 2",ctx.getChild(2))
+            #print("Hijo 3",ctx.getChild(3))
             esArray = ctx.getChild(2)
             if(esArray):
                 print("Es Arrya")
@@ -626,7 +645,7 @@ class DecafPrueba(DecafListener):
                 print("EL VALOR ES",valor)
                 first_code = [t +' = ' + valor]
                 print("El first code es", first_code)
-                second_code = [addr + ' = ' + str(size) + ' + '+t]
+                second_code = [addr + ' = ' + str(v.offset) + ' + '+t]
                 print("El second code es", second_code)
                 code = first_code+second_code
                 print("El code",code)
@@ -1071,13 +1090,13 @@ class DecafPrueba(DecafListener):
         else:
             print("No es if ni while")
             statements = ctx.statement()
-            print("Los statements",statements)
+            #print("Los statements",statements)
             code = []
             for st in statements:
-                print(ctx.start.line)
-                print("PARA EL STATEMENT",st,type(st))
-                print("Los statements ->>:",st,st.getText())
-                print("ESTO ES",self.nodeCodes[st])
+                #print(ctx.start.line)
+                #print("PARA EL STATEMENT",st,type(st))
+                #print("Los statements ->>:",st,st.getText())
+                #print("ESTO ES",self.nodeCodes[st])
                 code.extend(self.nodeCodes[st]['codigo'])
             print("EL CODE GENERADO EN EL BLOCK",code)
         
@@ -1168,10 +1187,16 @@ class DecafPrueba(DecafListener):
         nombre = ctx.ID().getText()
         hijos = len(expr)
         code = []
+        print("hijos gusta",expr)
+
+            
+        
         for exp in expr:
+            if('[' in exp.location().getText() ):
+                code.extend(self.nodeCodes[exp]['codigo'])
             code.extend(['PARAM '+self.nodeCodes[exp]['dir']])
 
-        call = 'CALL ' + nombre + ' '+str(hijos)
+        call = 'CALL ' + nombre + ', '+str(hijos)
         code.append(call)
         print("EL CODE EXIRT MEHTOD CALL", code)
         self.nodeCodes[ctx] = {
@@ -1181,6 +1206,19 @@ class DecafPrueba(DecafListener):
     def exitStatementMETHODCALL(self, ctx:DecafParser.StatementMETHODCALLContext):
         child = ctx.methodCall()
         self.nodeCodes[ctx] = self.nodeCodes[child]
+
+    def exitDeclaration(self, ctx:DecafParser.DeclarationContext):
+        sirve = ctx.getChild(0)
+        print(sirve,type(sirve))
+        if(type(sirve) == DecafParser.MethodDeclarationContext ):
+
+            print("EN EL EXIT DECLARATION",ctx)
+            print("El hijo 0", ctx.getChild(0),ctx.getChild(0).getText())
+            self.nodeCodes[ctx] = self.nodeCodes[ctx.getChild(0)]
+
+            print("QUE TRAE ESTO",self.nodeCodes[ctx.getChild(0)])
+            if ctx.getChild(0) in self.nodeCodes.keys():
+                self.nodeCodes[ctx] = self.nodeCodes[ctx.getChild(0)]
     
 
 def main(argv):
