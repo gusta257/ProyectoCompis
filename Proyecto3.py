@@ -115,6 +115,9 @@ class CodigoTarget():
                     # BODY DE CODIGO
                     # GET REG DE INSTRUCCION
                     codeReg, getRegistros, elements = self.getReg(line)
+                    print("Saliendo del getReg de",line)
+                    #print("registros",getRegistros)
+                    #print("elements",elements)
 
                     # BODY DE CODIGO
                     for i in codeReg:
@@ -137,28 +140,56 @@ class CodigoTarget():
                         # SE ACTUALIZA EL DESCRIPTOR DE REGISTROS
                         # EL REGISTRO DE LA IZQUIERDA EN ESTE CASO 'x'
                         self.registros[getRegistros['x']] = [elements[0]]
+                        #print("Buscando",getRegistros['x'],"en",self.registros)
+                        #print("Asignando",[elements[0]])
                         
                         # SE ACTUALIZA EL DESCRIPTOR DE DIRECCIONES
                         # EL REGISTRO DE LA IZQUIERDA EN ESTE CASO 'x'
+                        print("aadrr",self.addr)
                         self.addr[elements[0]] = [getRegistros['x']] 
+                        print("Buscando",elements[0],"en",self.addr)
+                        print("Asignando",[getRegistros['x']])
+                        print("aadrr",self.addr)
 
-
+                        # LIMPIANDO LA DIRECCION SI ESTA NO ES 'x'
                         for k, v in self.addr.items():
-                            if getRegistros['x'] in v and k != elements[0]:
-                                print(getRegistros['x'],"esta en",v,"Y",k )
+                            #print("En el for",k,",",v,elements[0])
+                            if getRegistros['x'] in v and k != elements[0]:  
+                                #print(getRegistros['x'], elements[0])  
                                 index = v.index(getRegistros['x'])
+                                #print(self.addr[k],index)
+                                #print("BORRANDO",self.addr[k][index])
                                 self.addr[k].pop(index)
+                                #print(self.addr[k],"ahora")
 
-
+                        #print("Asi queda addr",self.addr)
+                        #print("Asi queda reg",self.registros)
+        for k, v in self.addr.items():
+            #print("En el for",k,",",v,elements[0])
+            if getRegistros['x'] in v and k != elements[0]:  
+                print(getRegistros['x'], elements[0])  
+                index = v.index(getRegistros['x'])
+                print(self.addr[k],index)
+                print("BORRANDO",self.addr[k][index])
+                self.addr[k].pop(index)
+        print("Asi queda addr",self.addr)
+        print("Asi queda reg",self.registros)
+        # CODIGO FINAL
         for i in self.code:
             print(i)
 
+
+    # METODO GETREG PARA OBTENER:
+    # REGISTROS INVOLUCRADOS
+    # CODIGO DE CARGA DE ESOS REGISTROS
+    # Y EL VALOR DESDE EL CODIGO INTERMEDIO DE REFERENCIA 
     def getReg(self,line):
         a_list = line.split()
         line = " ".join(a_list)
         line = line.replace(" ", "")
         print("-"*20)
         print("INSTRUCCION PARA EL GET REG",line)
+        print(self.addr)
         ops = ['+','-','*']
         check =  any(item in a_list for item in ops)
         registers = {
@@ -168,19 +199,23 @@ class CodigoTarget():
                     }
         codeReg = []
         reg =  self.registros.keys()
+        
+        # SI LA INSTRUCCION ES UNA OPERACION
         if check:
-            print("Es una operacion",line)
-
+            # OBTEN REG DE LA FORMA x = y + z
             for item in ops: 
                 if item in a_list:
                     op = item
             
+            # DATOS DEL CODIGO INTERMEDIO
             igual = line.find("=")
             operacion = line.find(op)
             x = line[:igual]
             y = line[igual+1:operacion]
             z = line[operacion+1:]
             elements = [x,y,z]
+            
+            # ACTUALIZACION DEL REGISTRO DE DIRECCIONES SI ES UNA TEMPORAL
             if x not in reg:
                 self.addr[x] = self.esTemporal(x)
             if y not in reg:
@@ -188,104 +223,172 @@ class CodigoTarget():
             if z not in reg:
                 self.addr[z] = self.esTemporal(z)
 
-
-    
+            # PARA Y
             for k,v in self.registros.items():
-                print("LLAVE",k,"VALOR",v)
+                # CASO 1 Y
+                # SI y SE ENCUENTRA EN UN REGISTRO SE SELECCIONA ESE REGISTRO
                 if y in v:
-                    #print("Entro al caso 1, no se hace nada")
-                    #print("Reg ",k)
+                    print("Entre aca?")
+                    print("K es",k,"Y v es",v)
+                    print("Registros",self.registros)
+                    print("Addres",self.addr)
                     registers['y'] = k
-                    case3 = False
                     break
+                 
+                # CASO 2 Y
+                # SI y NO SE ENCUENTRA EN UN REGISTRO Y HAY UN REGISTRO VACIO SE ELIGE ESE REGISTRO Y SE CARGA
                 if y not in v:
                     if len(v) == 0:
                         #print("Reg ",k)
-                        self.registros[k] = [y] #se ingresa al registro
+                        self.registros[k] = [y] 
+                        #print("Y Agregando a registros",k,[y])
                         self.addr[y].append(k)
                         text = "        ldr "+k+", "+self.valor(y)
+                        print("Genere Y",text)
                         codeReg.append(text)
-                        registers['y'] = k
-                        print("*"*10)
-                        print(codeReg)
-                        print("*"*10)        
+                        registers['y'] = k      
                         break
 
+            # PARA Z
             for k,v in self.registros.items():
+                # CASO 1 Z
+                # SI z SE ENCUENTRA EN UN REGISTRO SE SELECCIONA ESE REGISTRO
                 if z in v:
-                    #print("Entro al caso 1, no se hace nada")
-                    #print("Reg ",k)
                     registers['z'] = k
                     break
+
+                # CASO 2 Z
+                # SI z NO SE ENCUENTRA EN UN REGISTRO Y HAY UN REGISTRO VACIO SE ELIGE ESE REGISTRO Y SE CARGA
                 if z not in v:
                     if len(v) == 0:
                         #print("Reg ",k)
-                        self.registros[k] = [z] #se ingresa al registro
+                        self.registros[k] = [z] 
+                        #print(" Z Agregando a registros",k,[z])
                         self.addr[z].append(k)
                         text = "        ldr "+ k +", "+ self.valor(z) 
+                        print("Genere Z",text)
                         codeReg.append(text)
                         registers['z'] = k
 
                         break
             
-          
-            for k,v in self.registros.items(): #Caso 1
+            # PARA X
+            # CASO 1 X
+            # SI x SE ENCUENTRA EN UN REGISTRO SE SELECCIONA ESE REGISTRO
+            for k,v in self.registros.items():
                 if x in v:
                     registers['x'] = k
                     break
-
-            if registers['x'] == '': #No se cumple el caso 1
-                registers['x'] =registers['y']
             
-            #print("LOS REGISTROS VAN ASI",self.registros)
-            #print("LOS ADDR VAN ASI",self.addr)
-            #print("X ES",x)
+            # CASO 2 X
+            # REUTILIZAMOS EL REGISTRO DE y en X
+            if registers['x'] == '': 
+                registers['x'] = registers['y']
+            
+            # SE ACTUALIZA EL DESCRIPTOR DE DIRECCIONES CON LO DEL LADO IZQUIERDO "x"
             self.addr[x].append(registers['x'])
+
+            # SE ACTUALIZA EL DECRIPTOR DE REGISTROS CON EL CONTENIDO DE X
             self.registros[registers['x']] = [x]
+            #print("X Agregando a registros",registers['x'],[x])
             
-            
+        # SI LA INSTRUCCION ES UNA ASIGNACION
+        # DE LA FORMA: x = y
         else:
-            print("es una asignacion",line)
-            pos_eq = line.find("=")
-            x = line[:pos_eq]
-            y = line[pos_eq+1:]
+            print("Es una asignacion",line)
+
+            # DATOS DEL CODIGO INTERMEDIO
+            igual = line.find("=")
+            x = line[:igual]
+            y = line[igual+1:]
+            esNum= y.isnumeric()
+            #print("x es",x,"y es",y)
             elements = [x,y]
-            keysDir = self.addr.keys()
-
-            if x not in keysDir:
+            llavesD = self.addr.keys()
+            print("add es",self.addr)
+            #print("LAS LLAVES DE ADDRES SON",llavesD)
+            if x not in llavesD:
                 self.addr[x] = self.esTemporal(x)
-            if y not in keysDir:
+            if y not in llavesD:
                 self.addr[y] = self.esTemporal(y)
-
-            #print("Val1 ", x)
-            #print("Val2 ", y)
+            #print("add es",self.addr)
+            #print("reg es",self.registros)
             tempReg = self.addr[y]
-            regy = ""
-            #Encontrar registro de Y
-            #print("QUE MADRES ES",tempReg)
-            for ele in tempReg:
-                if "r" == ele[0]:
-                    regy = ele
+            registroY = ""
+
+            # SELECCIONAMOS EL REGISTRO A UTILIZAR
+            for registroN in tempReg:
+                #print(tempReg)
+                if "r" == registroN[0]:
+                    registroY = registroN
             
-            self.registros[regy].append(x) #Agregar x al descriptor de registro Ry
-            self.addr[x] = [x]
-            registers['x'] = regy
-            registers['y'] = regy
-            text = "\tstr "+regy+", "+self.valor(x)
+            if(registroY == ""):
+                for k,v in self.registros.items():
+                    if len(v) == 0 and esNum == False:
+                        self.registros[k] = [y]
+                        self.addr[y].append(k)
+                        print("Ahora",y,"esta en el registro",k)
+                        print("Y addr es",self.addr)
+                        text = "        ldr "+k+", "+self.valor(y)
+                        print("Y EL CODE GENERADO ES",text)
+                        codeReg.append(text)
+                        tempReg = self.addr[y]
+                        for registroN in tempReg:
+                            #print(tempReg)
+                            if "r" == registroN[0]:
+                                registroY = registroN
+                        break
+                    elif len(v) == 0 and esNum:
+                        self.registros[k] = [y]
+                        self.addr[y].append(k)
+                        print("Ahora",y,"esta en el registro",k)
+                        print("Y addr es",self.addr)
+                        text = "        mov "+k+", "+self.valor(y)
+                        print("Y EL CODE GENERADO ES",text)
+                        codeReg.append(text)
+                        tempReg = self.addr[y]
+                        for registroN in tempReg:
+                            #print(tempReg)
+                            if "r" == registroN[0]:
+                                registroY = registroN
+                        break
+            
+
+            # ACTUALIZAMOS EL DECRIPTOR DE REGISTROS Y DIRECCIONES CON EL VALOR DE LA IZQUIERDA
+            self.registros[registroY] = [x] 
+            #print("Agregando a registros",registroY,x)
+            print("Antesito",self.addr,x)
+            self.addr[x].append(registroY)
+            print("Luego",self.addr)
+            # ASIGNAMOS NUEVO REGISTRO PARA x Y y
+            registers['x'] = registroY
+            registers['y'] = registroY
+
+            print(registers)
+
+            # GENERACION DE CODIGO
+            text = "\tstr "+registroY+", "+self.valor(x)
             codeReg.append(text)
+
+        print("AL TERMINAR TENGO ADDR",self.addr)
+        print("AL TERMINAR TENGO REGISTROS",self.registros)
+            
 
 
         return codeReg, registers, elements
 
     def esTemporal(self, valor):
+        return [valor]
+        '''
         if 't' in valor:
             return []
         else:
   
             return [valor]
+        '''
+        
     
     def valor(self, valor):
-        #print("QUE ES VALOR",valor)
         if valor[0] == 'L':
             val = str(valor[2:-1])
             if val.isnumeric():
@@ -293,12 +396,5 @@ class CodigoTarget():
                 return valor
             else:
                 return valor
-
-
-
-'''
-Primero, el DEF método jaja para poner el tag de cada método, y 
-agregar lo del prólogo y epílogo que nos explicó turiman
-Operaciones (todo lo relacionado a register y address descriptor), aquí se generan los ldr y str necesarios
-Asignaciones, aquí serían los mov y str también
-'''
+        else:
+            return "#"+str(valor)
