@@ -37,6 +37,7 @@ class DecafPrueba(DecafListener):
             "void": 0
         }
         self.codigoIntermedio = []
+        self.stackTemp = []
 
     
 
@@ -159,6 +160,7 @@ class DecafPrueba(DecafListener):
         
 
         CodigoTarget(tamaniosFunc)
+        
         #print("*"*20)
 
         #for i in code:
@@ -420,6 +422,7 @@ class DecafPrueba(DecafListener):
             #print(code)
             #print("*"*20)
             #print("CODIGO INTERMEDIO")
+            print("En statement Locat", top)
             for i in code:
                 print(i)
             #print("*"*20)
@@ -473,7 +476,7 @@ class DecafPrueba(DecafListener):
         yo = ctx
         child = ctx.location()
         if("[" not in child.getText() ):
-            #print("exitExpr_loc")
+          
             #print("*"*20)
             #print("yo",yo)
             #print("BUSCANDO",child.getText())
@@ -484,6 +487,7 @@ class DecafPrueba(DecafListener):
             id = child.ID().getText()
             L = self.nodeCodes[child]
             top = self.TopeGet(id,L['dir'])
+            print("En exit expr loc",top)
             self.nodeCodes[ctx] = {
                 'dir': top,
                 'codigo': self.nodeCodes[child]['codigo']
@@ -531,6 +535,7 @@ class DecafPrueba(DecafListener):
             temp = self.crearTemporal()
             offset = v.offset
             code = f'{temp} = {offset} + ' + total['dir']
+            print("Enter Location usando",temp,code)
             #print("EL CODE DEL LOC STRUCT ITER",code)
             #print("Le voy a meter al topget variable",name,"y temp",temp)
             topget = self.TopeGet(name,temp,struct = True)
@@ -588,6 +593,7 @@ class DecafPrueba(DecafListener):
 
             temp = self.crearTemporal()
             code = [temp + ' = ' + str(num['dir']) + ' + ' + str(child.offset)]
+            print("Revisar Hijo usando",temp,code)
             total = {
                 'codigo': num['codigo'] + code,
                 'dir': temp
@@ -633,9 +639,7 @@ class DecafPrueba(DecafListener):
                 second_code = [addr + ' = ' + str(v.offset) + ' + '+t]
                 #print("El second code es", second_code)
                 code = first_code+second_code
-                #print("El code",code)
-                for i in code:
-                    print(i)
+                print("EXIT LOCATION USANDO",t,addr,code)
                 #print("Codigo de array",code)
 
                 self.nodeCodes[ctx] = {
@@ -797,7 +801,7 @@ class DecafPrueba(DecafListener):
         addr = self.crearTemporal()
 
         code = self.nodeCodes[left]['codigo']+self.nodeCodes[right]['codigo']+[addr+' = '+self.nodeCodes[left]['dir'] + ' '+sign+' '+self.nodeCodes[right]['dir']]
-        ##print("AGREGANDO A",ctx,"EL CODIGO",code)
+        print("Exit expr 4 usando",addr,code)
         self.nodeCodes[ctx] = {
             'codigo': code,
             'dir': addr
@@ -812,7 +816,7 @@ class DecafPrueba(DecafListener):
         addr = self.crearTemporal()
 
         code = self.nodeCodes[left]['codigo']+self.nodeCodes[right]['codigo']+[addr+' = '+self.nodeCodes[left]['dir'] + ' '+sign+' '+self.nodeCodes[right]['dir']]
-        ##print("AGREGANDO A",ctx,"EL CODIGO",code)
+        print("Exit expr 5 usando",addr,code)
         self.nodeCodes[ctx] = {
             'codigo': code,
             'dir': addr
@@ -822,7 +826,7 @@ class DecafPrueba(DecafListener):
         left = ctx.getChild(1)
         addr = self.crearTemporal()
         code = self.nodeCodes[left]['codigo']+[addr+' = '+'menos '+self.nodeCodes[left]['dir']]
-        ##print("AGREGANDO A",ctx,"EL CODIGO",code)
+        print("Exit expr minus usando",addr,code)
         self.nodeCodes[ctx] = {
             'codigo': code,
             'dir': addr
@@ -1146,6 +1150,7 @@ class DecafPrueba(DecafListener):
             'codigo' : code
         }
         self.scopeTemporal.pop()
+        self.contTemp = 0
     
     def exitStatementRETURN(self, ctx:DecafParser.StatementRETURNContext):
         expr = ctx.expression()
