@@ -1,31 +1,3 @@
-#Proyecto 3
-'''
-
-    Descriptor de Registros contiene
-    todos los registros disponibles a utilizar
-    y lo que tienen dentro 
-    registros = {
-        r0: ['L[0]'],
-        r1: ['t0'],
-        r2: [],
-        r3: [],
-        r4: [],
-        r5: [],
-        r6: [],
-        r7: [],
-        r8: [],
-        r9: [],
-        r10: []
-    }
-
-    Descriptor de direcciones contiente
-    direcciones = {
-        t0: ['t0', 'r1']
-        L[0]: ['L[0]', 'r0']
-    }
-
-'''
-
 class CodigoTarget():
     def __init__(self, size):
         self.registros = {
@@ -46,6 +18,14 @@ class CodigoTarget():
         self.addr = {}
         self.code = []
         self.arm = []
+        self.conditions = {
+            '==': 'beq',
+            '<': 'blt',
+            '>': 'bgt',
+            '!=': 'bne',
+            '<=': 'ble',
+            '>=': 'bge'
+        }
         self.main()
         
     
@@ -96,7 +76,7 @@ class CodigoTarget():
                     for i in range(params):
                         text = '\tstr r'+str(i)+", [sp, #"+str(i * 4)+"]"
                         codeTemp.append(text)
-                        print("Hay parametros que hacerle str xd",params)
+                        
 
 
 
@@ -221,6 +201,128 @@ class CodigoTarget():
                         print("Return de un numero ")
                         texto = "\tmov "+registro+", #"+valor
                         codeTemp.append(texto)
+                elif "IF " in line:
+                    #print("SE VIENE IF PASPS")
+                    
+                    line = line.strip()
+                    endOp = line.find("G")
+                    tag = line[endOp+5:]
+                    
+                    condicional = line[3:endOp]
+                    condicional = condicional.strip()
+                    #print("LA OPERACION DEL IF ES",condicional)
+                    '''
+                    < blt
+                    > bgt
+                    == beq
+                    != bne
+                    >= bge
+                    <= gle
+                    '''
+                    op = ''
+                    operators = ['<','>','==','!=','>=','<=']
+                    for x in operators:
+                        if x in condicional:
+                            #print("TIENE LA CONDIFICONAL",x)
+                            op = x
+                    posOp = condicional.find(op)
+                    val1 = condicional[:posOp-1]
+                    val2 = condicional[posOp+len(op)+1:]
+                    #print("val1 es",val1)
+                    #print("op es",op)
+                    #print("val2 es",val2)
+                    #print("y la tag es",tag)
+
+                    if("L" in val1):
+                        registro1 = self.getRegUnico(val1)
+                        val = str(val1[2:-1])
+                        #print("QUE ES VAL",val,val.isnumeric())
+                        if val.isnumeric():
+                            val1 = "[sp, #"+str(val)+"]"
+                        
+                        else:
+                            print("°"*40)
+                            abrir = val1.find("[")+1
+                            cerrar = val1.find("]")
+                            temporal = val1[abrir:cerrar]
+                            for k,v in self.registros.items():
+                                if temporal in v:
+                                    val1 = "[sp, "+str(k)+"]"
+                                    break
+                        print("registro",registro1,"valor",val1)                    
+                        texto = '\tldr '+registro1+", "+val1
+                        codeTemp.append(texto)
+
+                    elif ("G" in val1):
+                        self.getRegUnico(val1)
+                    elif("t" == val1[0]):
+                        self.getRegUnico(val1)
+                    else:
+                        registro1 = self.getRegUnico(val1)
+                        texto = "\tmov "+registro1+", "+val1
+                        codeTemp.append(texto)
+
+                    if("L" in val2):
+                        registro2 = self.getRegUnico(val2)
+                        val = str(val2[2:-1])
+                        #print("QUE ES VAL",val)
+                        if val.isnumeric():
+                            val2 = "[sp, #"+str(val)+"]"
+                        
+                        else:
+                            print("°"*40)
+                            abrir = val2.find("[")+1
+                            cerrar = val2.find("]")
+                            temporal = val2[abrir:cerrar]
+                            for k,v in self.registros.items():
+                                if temporal in v:
+                                    val2 = "[sp, "+str(k)+"]"
+                                    break
+                                                
+                        texto = '\tldr '+registro2+", "+val2
+                        codeTemp.append(texto)
+
+                    elif ("G" in val2):
+                        self.getRegUnico(val2)
+                    elif("t" == val2[0]):
+                        self.getRegUnico(val2)
+                    else:
+                        registro2 = self.getRegUnico(val2)
+                        texto = "\tmov "+registro2+", "+val2
+                        codeTemp.append(texto)
+                    
+                    texto, salto= self.getConditional(registro1,registro2,op)
+                    textoSalto = "\t"+salto +" "+ tag
+                    #print("EL TEXTO ES",texto)
+                    #print("El SALTO ES",salto)
+                    codeTemp.append(texto)
+                    codeTemp.append(textoSalto)
+
+
+                elif "GOTO" in line:
+                    #print("SE VIENE GOTO PASPS")
+                    line = line.strip()
+                    funcion = line[5:]
+                    texto = "\tb "+funcion
+                    codeTemp.append(texto)
+
+                elif "IF_TRUE" in line or "IF_FALSE" in line or "WHILE_TRUE" in line:
+                    line = line.strip()
+                    texto = line+":"
+                    codeTemp.append(texto)
+                    
+                elif "END_IF_" in line or "END_WHILE" in line:
+                    line = line.strip()
+                    texto = line+":"
+                    codeTemp.append(texto)
+
+                elif "BEGIN_WHILE_" in line:
+                    line = line.strip()
+                    salto = "\tb "+line
+                    texto = line+":"
+                    codeTemp.append(salto)
+                    codeTemp.append(texto)
+
                 else:
                     # BODY DE CODIGO
                     # GET REG DE INSTRUCCION
@@ -304,6 +406,7 @@ class CodigoTarget():
         print("-"*20)
         print("INSTRUCCION PARA EL GET REG",line)
         print(self.addr)
+        print(self.registros)
         ops = ['+','-','*']
         check =  any(item in a_list for item in ops)
         registers = {
@@ -447,26 +550,32 @@ class CodigoTarget():
             x = line[:igual]
             y = line[igual+1:]
             esNum= y.isnumeric()
-            #print("x es",x,"y es",y)
+           
             elements = [x,y]
             llavesD = self.addr.keys()
-            #print("add es",self.addr)
-            #print("LAS LLAVES DE ADDRES SON",llavesD)
+            print("LAS LLAVES DE ADDRES SON",llavesD)
+           
             if x not in llavesD:
                 self.addr[x] = self.esTemporal(x)
             if y not in llavesD:
                 self.addr[y] = self.esTemporal(y)
-            #print("add es",self.addr)
-            #print("reg es",self.registros)
+
+            print("add es",self.addr)
+            print("reg es",self.registros)
             tempReg = self.addr[y]
+
             registroY = ""
 
-            # SELECCIONAMOS EL REGISTRO A UTILIZAR
+            # revisamos si y esta en algun registro
             for registroN in tempReg:
-                #print(tempReg)
+                
+                print(tempReg)
+                #si hay un registro lo seleccionamos
                 if "r" == registroN[0]:
                     registroY = registroN
-            
+                    
+            print("El registroY es",registroY)
+            # si no tiene registro
             if(registroY == ""):
                 for k,v in self.registros.items():
                     if len(v) == 0 and esNum == False:
@@ -488,9 +597,11 @@ class CodigoTarget():
                         self.addr[y].append(k)
                         print("Ahora",y,"esta en el registro",k)
                         print("Y addr es",self.addr)
+                        print("U REG ES",self.registros)
                         text = "        mov "+k+", "+self.valor(y)
                         print("Y EL CODE GENERADO ES",text)
                         codeReg.append(text)
+
                         tempReg = self.addr[y]
                         for registroN in tempReg:
                             #print(tempReg)
@@ -498,14 +609,27 @@ class CodigoTarget():
                                 registroY = registroN
                         break
             
-
+            # ESTA COSAAAAAAA
             # ACTUALIZAMOS EL DECRIPTOR DE REGISTROS Y DIRECCIONES CON EL VALOR DE LA IZQUIERDA
-            self.registros[registroY] = [x] 
-            #print("Agregando a registros",registroY,x)
-            #print("Antesito",self.addr,x)
+            print("HAY QUE ASIGNAR",x,"al registro",registroY)
+
+            '''
+            for k,v in self.registros.items():
+                print("Buscando",x,"en",v)
+                if x in v:
+                    print("Ese espacio ya existe",k,v)
+                    registroY = k
+                    break
+
+            self.registros[registroY] = [x]
+
+            if(len(self.addr[x]) <2):
+                print("*"*20)
+                print("APENDEADO",registroY,"a",self.addr[x])
+                self.addr[x].append(registroY)
+            '''
+            self.registros[registroY] = [x]
             self.addr[x].append(registroY)
-            #print("Luego",self.addr)
-            # ASIGNAMOS NUEVO REGISTRO PARA x Y y
             registers['x'] = registroY
             registers['y'] = registroY
 
@@ -513,10 +637,15 @@ class CodigoTarget():
 
             # GENERACION DE CODIGO
             text = "\tstr "+registroY+", "+self.valor(x)
+            print("EN LA ASGINACION")
+            print(text)
+            print(self.registros)
+            print(self.addr)
             codeReg.append(text)
+            
 
-        #print("AL TERMINAR TENGO ADDR",self.addr)
-        #print("AL TERMINAR TENGO REGISTROS",self.registros)
+        print("AL TERMINAR TENGO ADDR",self.addr)
+        print("AL TERMINAR TENGO REGISTROS",self.registros)
             
 
 
@@ -558,3 +687,28 @@ class CodigoTarget():
                 return valor
         else:
             return "#"+str(valor)
+
+    def getConditional(self, op1, op2,operador):
+        code = '\tcmp '+op1+", "+op2
+        salto = self.conditions[operador]
+
+        return code, salto
+
+
+    def getRegUnico(self, variable):
+        registro = "VACIO ERROR AAAAAAAA"
+        print("-"*50)
+        print("QUE VARIABLE ES",variable)
+        print(self.registros)
+        for k,v in self.registros.items():
+            if variable in v:
+                print("REG NUEVO DE VARIABLE",variable,"es",k)
+                registro = k
+                return registro
+            
+        for k,v in self.registros.items():
+            if(len(v) == 0):
+                registro = k
+                return registro
+        
+
