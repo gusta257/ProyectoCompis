@@ -88,10 +88,16 @@ class CodigoTarget():
                     # CONTADOR DE HOJA O RAMA
                     call = 0
                     # TAMANIO DE LA FUNCION COMPLETA
-                    funcionS = self.funcionSize[line[4:-2]]
+                    funcionS = self.funcionSize[line[4:-2]][0]
+                    params = self.funcionSize[line[4:-2]][1]
                     # AGREGANDO TAG
                     # main:
                     self.code.append(funcion)
+                    for i in range(params):
+                        text = '\tstr r'+str(i)+", [sp, #"+str(i * 4)+"]"
+                        codeTemp.append(text)
+                        print("Hay parametros que hacerle str xd",params)
+
 
 
                 # LINEA DE SALIDA DE UN METODO
@@ -180,6 +186,41 @@ class CodigoTarget():
                     self.registros['r0'] = ['R']
                     self.addr['R'] = ['R','r0']
 
+                elif "RETURN" in line:
+                    line = line.strip()
+                    registro = 'r0'
+                    valor = line[7:]
+                    print("En un return",valor)
+
+                    if 'L' in valor:
+                        print("Return de una Local")
+                        
+                        val = str(valor[2:-1])
+                        print("QUE ES VAL",val)
+                        if val.isnumeric():
+                            valor = "[sp, #"+str(val)+"]"
+                        
+                        else:
+                            print("°"*40)
+                            abrir = valor.find("[")+1
+                            cerrar = valor.find("]")
+                            temporal = valor[abrir:cerrar]
+                            for k,v in self.registros.items():
+                                if temporal in v:
+                                    valor = "[sp, "+str(k)+"]"
+                                    break
+                                                
+                        texto = '\tldr '+registro+", "+valor
+                        codeTemp.append(texto)
+
+                    elif 'G' in valor:
+                        print("Return de una global")
+                    elif 't' in valor:
+                        print("Return de una temporal")
+                    else:
+                        print("Return de un numero ")
+                        texto = "\tmov "+registro+", #"+valor
+                        codeTemp.append(texto)
                 else:
                     # BODY DE CODIGO
                     # GET REG DE INSTRUCCION

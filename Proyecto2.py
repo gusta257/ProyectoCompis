@@ -130,6 +130,7 @@ class DecafPrueba(DecafListener):
         #print("-"*15)
         for key,value in self.table.items():
             temp = 0
+            cantParam = 0
             print("Scope:", key)
             print("Padre:",value[0])
             print("Tipo:",value[1])
@@ -138,11 +139,14 @@ class DecafPrueba(DecafListener):
                 print("     Variable:", v.id,"Tipo:",  v.type,"Offset:", v.offset,"Tamanio:", v.size,"Es parametro?:", v.params,"Es array?", v.array)
                 if(value[0]):
                     temp +=  v.size
-            tamaniosFunc[key] = temp
+                if(v.params):
+                    cantParam +=1
+
+            tamaniosFunc[key] = [temp,cantParam]
 
             print("-"*15)
         print("salgo del programa\n")
-        
+   
         declar = ctx.declaration()
         code = []
 
@@ -158,7 +162,7 @@ class DecafPrueba(DecafListener):
             textfile.write(str(element)+"\n")
         textfile.close()
         
-
+        
         CodigoTarget(tamaniosFunc)
         
         #print("*"*20)
