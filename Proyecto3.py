@@ -1,3 +1,6 @@
+from typing import Text
+
+
 class CodigoTarget():
     def __init__(self, size):
         self.registros = {
@@ -72,7 +75,11 @@ class CodigoTarget():
                     params = self.funcionSize[line[4:-2]][1]
                     # AGREGANDO TAG
                     # main:
-                    self.code.append(funcion)
+                    if(funcion == "main:"):
+                        funcion = '_start:'
+                        self.code.append(funcion)
+                    else:
+                        self.code.append(funcion)
                     for i in range(params):
                         text = '\tstr r'+str(i)+", [sp, #"+str(i * 4)+"]"
                         codeTemp.append(text)
@@ -98,7 +105,7 @@ class CodigoTarget():
                         # EPILOGO DE STACK
                         self.code.append("\tsub sp, r11, #0")
                         self.code.append("\tpop {r11,pc}")
-
+                        
                          
 
                     else:
@@ -117,6 +124,9 @@ class CodigoTarget():
                         self.code.append("\tpop {r11}")
                         self.code.append("\tbx lr")
                     param = 0
+                   
+                    
+                    
                     for i in self.code:
                         self.arm.append(i) 
         
@@ -148,6 +158,18 @@ class CodigoTarget():
                         texto = "\tldr "+registerP+", "+valor
                         codeTemp.append(texto)
                         print("Codigo generado",texto)
+
+                    elif "G" in line:
+                        print("Es global")
+                    elif "t" in line:
+                        print("Temporal como parametro")
+                        print(self.registros)
+                        print(self.addr)
+                        print("La temporal tendra este registro",)
+                        registro = self.getRegUnico(valor)
+                        codeTemp.append("\tmov r0,"+ registro)
+                        
+
                     else:
                         print("Es global")
 
@@ -170,6 +192,7 @@ class CodigoTarget():
                     line = line.strip()
                     registro = 'r0'
                     valor = line[7:]
+                    retorno = valor
                     print("En un return",valor)
 
                     if 'L' in valor:
@@ -192,17 +215,30 @@ class CodigoTarget():
                                                 
                         texto = '\tldr '+registro+", "+valor
                         codeTemp.append(texto)
+                        self.registros[registro] = [retorno]
+                        self.addr[retorno] = [retorno,registro]
+                        
+                        print("Codigo creado del return",texto)
+                        print("reg",self.registros)
+                        print("addr",self.addr)
 
                     elif 'G' in valor:
                         print("Return de una global")
                     elif 't' in valor:
+                        print(self.registros)
+                        print(self.addr)
                         print("Return de una temporal")
+                        registro = self.getRegUnico(valor)
+                        codeTemp.append("\tmov r0,"+ registro)
+                        
                     else:
                         print("Return de un numero ")
                         texto = "\tmov "+registro+", #"+valor
                         codeTemp.append(texto)
+                        print("Codigo creado",texto)
+
                 elif "IF " in line:
-                    #print("SE VIENE IF PASPS")
+                    print("SE VIENE IF PASPS",line)
                     
                     line = line.strip()
                     endOp = line.find("G")
@@ -235,8 +271,11 @@ class CodigoTarget():
 
                     if("L" in val1):
                         registro1 = self.getRegUnico(val1)
+                        print("EN EL IF ME SACO EL REGISTRO",registro1)
+                        print(self.registros)
+                        print(self.addr)
                         val = str(val1[2:-1])
-                        #print("QUE ES VAL",val,val.isnumeric())
+                 
                         if val.isnumeric():
                             val1 = "[sp, #"+str(val)+"]"
                         
@@ -259,13 +298,13 @@ class CodigoTarget():
                         self.getRegUnico(val1)
                     else:
                         registro1 = self.getRegUnico(val1)
-                        texto = "\tmov "+registro1+", "+val1
+                        texto = "\tmov "+registro1+", #"+val1
                         codeTemp.append(texto)
 
                     if("L" in val2):
                         registro2 = self.getRegUnico(val2)
                         val = str(val2[2:-1])
-                        #print("QUE ES VAL",val)
+          
                         if val.isnumeric():
                             val2 = "[sp, #"+str(val)+"]"
                         
@@ -288,7 +327,7 @@ class CodigoTarget():
                         self.getRegUnico(val2)
                     else:
                         registro2 = self.getRegUnico(val2)
-                        texto = "\tmov "+registro2+", "+val2
+                        texto = "\tmov "+registro2+", #"+val2
                         codeTemp.append(texto)
                     
                     texto, salto= self.getConditional(registro1,registro2,op)
@@ -297,6 +336,13 @@ class CodigoTarget():
                     #print("El SALTO ES",salto)
                     codeTemp.append(texto)
                     codeTemp.append(textoSalto)
+                    print("Finalizando if")
+                    for k,v in self.registros.items():
+                        if(len(v) > 0 and v[0].isnumeric()):
+                            #print("Elregistro",k,"tiene un numero hay que borrar")
+                            self.registros[k] = []
+                            self.addr[v[0]] = [self.addr[v[0]][0]] 
+ 
 
 
                 elif "GOTO" in line:
@@ -310,7 +356,11 @@ class CodigoTarget():
                     line = line.strip()
                     texto = line+":"
                     codeTemp.append(texto)
-                    
+                    print("*"*25)
+                    print("Dentro de un if flase or if true",line)
+                    print(self.addr)
+                    print(self.registros)
+
                 elif "END_IF_" in line or "END_WHILE" in line:
                     line = line.strip()
                     texto = line+":"
@@ -391,6 +441,17 @@ class CodigoTarget():
         print("Asi queda addr",self.addr)
         print("Asi queda reg",self.registros)
         # CODIGO FINAL
+        print()
+        print("-"*25)
+        #self.arm.insert(0,"\n")
+        self.arm.insert(0,".global _start")
+        self.arm.append("\n")
+        texto = ".global_stack:	.long	global_var"
+        self.arm.append(texto)
+        texto = "global_var:	.zero	"+str(self.funcionSize["global"][0])
+        self.arm.append("\n")
+        self.arm.append(texto)
+
         for i in self.arm:
             print(i)
 
@@ -460,7 +521,7 @@ class CodigoTarget():
                         if(y.isnumeric() ==False):
                             #print("Reg ",k)
                             self.registros[k] = [y] 
-                            #print("Y Agregando a registros",k,[y])
+                            print("Y Agregando a registros",k,[y])
                             self.addr[y].append(k)
                             text = "        ldr "+k+", "+self.valor(y)
                             print("Genere Y",text)
@@ -469,9 +530,7 @@ class CodigoTarget():
                             break
                         else:
                             #print("Reg ",k)
-                            #print("QUE ES K",k)
-                            #print("QUE ES REGISTROS",self.registros)
-                            #print("QUE ES y",y)
+         
                             print("Guardando en el registro",k,"el valor",y)
                             self.registros[k] = [y] 
                             #print("Y Agregando a registros",k,[y])
@@ -499,7 +558,7 @@ class CodigoTarget():
                             self.registros[k] = [z] 
                             #print(" Z Agregando a registros",k,[z])
                             self.addr[z].append(k)
-                            #print("Aqui esta el problema del ldr 3 verdad",z)
+                            
                             text = "        ldr "+ k +", "+ self.valor(z) 
                             print("Genere Z",text)
                             codeReg.append(text)
@@ -511,7 +570,7 @@ class CodigoTarget():
                             self.registros[k] = [z] 
                             #print(" Z Agregando a registros",k,[z])
                             self.addr[z].append(k)
-                            #print("Aqui esta el problema del ldr 3 verdad",z)
+                
                             text = "        mov "+ k +", "+ self.valor(z) 
                             print("Genere Z",text)
                             codeReg.append(text)
@@ -628,6 +687,7 @@ class CodigoTarget():
                 print("APENDEADO",registroY,"a",self.addr[x])
                 self.addr[x].append(registroY)
             '''
+            
             self.registros[registroY] = [x]
             self.addr[x].append(registroY)
             registers['x'] = registroY
@@ -636,14 +696,41 @@ class CodigoTarget():
             print(registers)
 
             # GENERACION DE CODIGO
-            text = "\tstr "+registroY+", "+self.valor(x)
-            print("EN LA ASGINACION")
-            print(text)
-            print(self.registros)
-            print(self.addr)
-            codeReg.append(text)
-            
+            if("G" in x):
+                print("a")
+                z = ".global_stack"
+                for k,v in self.registros.items():
+                    # CASO 1 Z
+                    # SI z SE ENCUENTRA EN UN REGISTRO SE SELECCIONA ESE REGISTRO
+                    if z in v:
+                        registers['z'] = k
+                        break
 
+                    # CASO 2 Z
+                    # SI z NO SE ENCUENTRA EN UN REGISTRO Y HAY UN REGISTRO VACIO SE ELIGE ESE REGISTRO Y SE CARGA
+                    if z not in v:
+                        if len(v) == 0:
+                            
+                            self.registros[k] = [z] 
+                            self.addr[z] = k
+                            text = "        ldr "+ k +", "+ z
+                            codeReg.append(text)
+                            registers['z'] = k
+
+                            break
+
+                text = "\tstr "+registroY+", "+self.valor(x)
+                codeReg.append(text)
+            else:
+                text = "\tstr "+registroY+", "+self.valor(x)
+                codeReg.append(text)
+            #print("EN LA ASGINACION")
+            #print(text)
+            #print(self.registros)
+            #print(self.addr)
+            
+            
+    
         print("AL TERMINAR TENGO ADDR",self.addr)
         print("AL TERMINAR TENGO REGISTROS",self.registros)
             
@@ -677,12 +764,28 @@ class CodigoTarget():
                 temporal = valor[abrir:cerrar]
                 for k,v in self.registros.items():
                     if temporal in v:
-                        #print("Entre aca?")
-                        #print("K es",k,"Y v es",v)
-                        #print("Registros",self.registros)
-                        #print("Addres",self.addr)
-                        #registers['y'] = k
                         valor = "[sp, "+str(k)+"]"
+                        break
+                return valor
+        if valor[0] == 'G':
+            registro = ""
+            val = str(valor[2:-1])
+            for k,v in self.registros.items():
+                if(".global_stack" in v):
+                    registro = k
+                    break
+            print("QUE ES",registro)
+            if val.isnumeric():
+                valor = "["+registro+", #"+str(val)+"]"
+                return valor
+            else:
+                print("°"*40)
+                abrir = valor.find("[")+1
+                cerrar = valor.find("]")
+                temporal = valor[abrir:cerrar]
+                for k,v in self.registros.items():
+                    if temporal in v:
+                        valor = "["+registro+", "+str(k)+"]"
                         break
                 return valor
         else:
@@ -704,11 +807,15 @@ class CodigoTarget():
             if variable in v:
                 print("REG NUEVO DE VARIABLE",variable,"es",k)
                 registro = k
+                self.registros[k] = [variable] 
+                self.addr[variable] = [variable, k]
                 return registro
             
         for k,v in self.registros.items():
             if(len(v) == 0):
                 registro = k
+                self.registros[k] = [variable] 
+                self.addr[variable] = [variable, k]
                 return registro
         
 
