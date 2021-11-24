@@ -137,8 +137,7 @@ class DecafPrueba(DecafListener):
 
             for k,v in value[2].items():
                 print("     Variable:", v.id,"Tipo:",  v.type,"Offset:", v.offset,"Tamanio:", v.size,"Es parametro?:", v.params,"Es array?", v.array)
-                if(value[0]):
-                    temp +=  v.size
+                temp +=  v.size
                 if(v.params):
                     cantParam +=1
 
@@ -805,7 +804,7 @@ class DecafPrueba(DecafListener):
         addr = self.crearTemporal()
 
         code = self.nodeCodes[left]['codigo']+self.nodeCodes[right]['codigo']+[addr+' = '+self.nodeCodes[left]['dir'] + ' '+sign+' '+self.nodeCodes[right]['dir']]
-        print("Exit expr 4 usando",addr,code)
+        #print("Exit expr 4 usando",addr,code)
         self.nodeCodes[ctx] = {
             'codigo': code,
             'dir': addr
@@ -1118,8 +1117,8 @@ class DecafPrueba(DecafListener):
         B = self.nodeCodes[ctx]
         if(child.rel_op() or child.eq_op() ):
             expr = ctx.expression()
-            for i in expr:
-                print("BUSCANDO XD",i)
+            #for i in expr:
+            #    print("BUSCANDO XD",i)
                 
             E1 = self.nodeCodes[expr[0]] # PARA LA VARIABLE A
             E2 = self.nodeCodes[expr[1]] # PARA EL NUM 5
@@ -1173,28 +1172,90 @@ class DecafPrueba(DecafListener):
         #print()
 
     def exitMethodCall(self, ctx:DecafParser.MethodCallContext):
+        print("-"*25)
         expr = ctx.expression()
         nombre = ctx.ID().getText()
+        print("SALIENDO DE LLAMAR EL",nombre)
         hijos = len(expr)
+        print(hijos)
         code = []
-        
+
+        total_code = []
+        parameter_code = []
+        parameters = []
+        for child in ctx.children:
+            if isinstance(child, DecafParser.ExpressionContext):
+                parameters.append(child)
+
+        #print("QUE ES PARAMETERS",parameters)
+        codeParam = f'CALL {nombre}, 0'
+        if len(parameters) == 0:
+            self.nodeCodes[ctx] = {
+                'codigo': [codeParam],
+                'dir': 'R'
+            }
+            return
+
+        print("---------------ENTRE A FOR-------------")
+
         for exp in expr:
-            #print("para exp",exp.getText())
+            
+            print("PARAMETROS DE",nombre,"son",exp.getText(),type(exp))
             #print("EN EL PARAM",self.nodeCodes[exp]['codigo'])
+            
+            print("TOCA",self.nodeCodes[exp]['codigo'])
+            print("Y SU DIR",self.nodeCodes[exp]['dir'])
+            code.extend(self.nodeCodes[exp]['codigo'])
+
+            param = self.nodeCodes[exp]['dir']
+            total_code = self.nodeCodes[exp]['codigo'] + total_code
+            parameter_code += [f'PARAM {param}']
+            print("Que es para",param)      
+            print("total_code",total_code)
+            print("parameter_code",parameter_code)      
+            '''
             try:
+                
                 if('[' in exp.location().getText() ):
+                    print("*"*500)
                     code.extend(self.nodeCodes[exp]['codigo'])
             except:
+                print("TOCA",self.nodeCodes[exp]['codigo'])
+                print("Y SU DIR",self.nodeCodes[exp]['dir'])
                 code.extend(self.nodeCodes[exp]['codigo'])
+
+                param = self.nodeCodes[exp]['dir']
+                total_code = self.nodeCodes[exp]['codigo'] + total_code
+                parameter_code += [f'PARAM {param}']
+                print("Que es para",param)      
+                print("total_code",total_code)
+                print("parameter_code",parameter_code)      
+            '''
+                
+
+                
+            fix = f'CALL {nombre}, '
+            fix += str(len(parameters))
+            print("FINAL",total_code + parameter_code + [fix])
+            fixF = total_code + parameter_code + [fix]
+            print("Agregando: PARAM",self.nodeCodes[exp]['dir'])
+
             code.extend(['PARAM '+self.nodeCodes[exp]['dir']])
+        
+        print("---------------SALI DE FOR-------------")
+
+        
 
         call = 'CALL ' + nombre + ', '+str(hijos)
+        print("YA HICE EL CALL DE",call)
         code.append(call)
-        #print("EL CODE EXIRT MEHTOD CALL", code)
+        print("EL CODE EXIT METHOD CALL", code)
         self.nodeCodes[ctx] = {
-            'codigo' : code,
+            'codigo' : fixF,
             'dir': 'R'
         }
+        print("-"*25)
+
     def exitStatementMETHODCALL(self, ctx:DecafParser.StatementMETHODCALLContext):
         child = ctx.methodCall()
         self.nodeCodes[ctx] = self.nodeCodes[child]
