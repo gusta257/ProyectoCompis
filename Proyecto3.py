@@ -151,7 +151,7 @@ class CodigoTarget():
                 elif "PARAM" in line: #TENGO QUE HACER LO DEL CALL 
                     line = line.strip()
                     print("-"*20)
-                    print("PARAMETROS",line)
+                    print(" PARAMETROS",line)
 
                     registerP = "r"+str(param)
                     
@@ -180,7 +180,7 @@ class CodigoTarget():
                     elif "G" in line:
                         print("Es global")
                     elif "t" in line or "R" == valor :
-                        print("PARAMO",line)
+                        print(" PARAMO",line)
                         print("Temporal como parametro",param)
                         print(self.registros)
                         print(self.addr)
@@ -188,10 +188,42 @@ class CodigoTarget():
                         print("o es param reistro")
                         registro = self.getRegUnico(valor)
                         newReg = "r"+str(param)
-                        codeTemp.append("\tmov "+newReg+", "+ registro)
-                        print("asi queda")
+                        print("La temporal",valor,"va a ir en el registro",registro)
+                        print("Y debe de ir en el",newReg)
+                        # registro debe de ir en new reg
+                        # debo de sacar el contenido de new reg y colocarlo en otro registro
+                        # r0 [t1] = newReg
+                        # r2 [t2] = registro
+                        # r3 [] = nuevoRegistro
+
+                        for k,v in self.registros.items():
+                            if(len(v) == 0):
+                                nuevoRegistro = k
+                                break
+
+                        for k, v in self.addr.items():
+                            if newReg in v:
+                                address = k
+                                break
+
+                        textoN = "\tmov "+nuevoRegistro+", "+ newReg
+
+                        self.registros[nuevoRegistro] = self.registros[newReg]
+                        self.addr[address] = [address,nuevoRegistro]
+                        codeTemp.append(textoN)
+
+                        texto = "\tmov "+newReg+", "+ registro
+                        
+                        self.registros[newReg] = self.registros[registro]
                         self.registros[registro] = []
-                        self.addr[valor] = [valor]
+                        self.addr[valor] = [valor,newReg]
+                        codeTemp.append(texto)
+                        
+                        
+                        print("asi queda")
+                        print(texto)
+
+                        
 
                         print(self.registros)
                         print(self.addr)
@@ -520,6 +552,12 @@ class CodigoTarget():
 
         for i in self.arm:
             print(i)
+
+        textfile = open("Output2.txt","w")
+    
+        for element in self.arm:
+            textfile.write(str(element)+"\n")
+        textfile.close()
 
 
     # METODO GETREG PARA OBTENER:
