@@ -152,18 +152,38 @@ class CodigoTarget():
                     line = line.strip()
                     print("-"*20)
                     print(" PARAMETROS",line)
-
+                    print(self.registros)
+                    print(self.addr)
                     registerP = "r"+str(param)
+                    textoN = ""
                     
-                    print("Este param va en",registerP)
+                    
                     variable = line.find("M")
                     valor = line[variable+2:]
                     print(valor)
-                    
+                    print("Este param va en",registerP)
+
+                    if(len(self.registros[registerP])>0):
+                        for k,v in self.registros.items():
+                            if(len(v) == 0):
+                                registroVacio = k
+                                break
+                        for k, v in self.addr.items():
+                            if registerP in v:
+                                address = k
+                                print("Lo que esta en",registerP,address)
+                                break
+
+                        textoN = "\tmov "+registroVacio+", "+ registerP
+                        self.registros[registroVacio] = [address]
+                        self.addr[address] = [address, registroVacio]
+                        self.registros[registerP] = []
+                        codeTemp.append(textoN)
+
                     if "L" in line:
                         val = str(valor[2:-1])
                         if val.isnumeric():
-                            valor = "[sp, #"+str(val)+"]"
+                            valorC = "[sp, #"+str(val)+"]"
                         else:
                             
                             abrir = valor.find("[")+1
@@ -171,14 +191,17 @@ class CodigoTarget():
                             temporal = valor[abrir:cerrar]
                             for k,v in self.registros.items():
                                 if temporal in v:
-                                    valor = "[sp, "+str(k)+"]"
+                                    valorC = "[sp, "+str(k)+"]"
                                     break
-                        texto = "\tldr "+registerP+", "+valor
+                        texto = "\tldr "+registerP+", "+valorC
                         codeTemp.append(texto)
+                        self.registros[registerP] = [valor]
+                        self.addr[valor] = [valor, registerP]
                         print("Codigo generado",texto)
 
                     elif "G" in line:
                         print("Es global")
+
                     elif "t" in line or "R" == valor :
                         print(" PARAMO",line)
                         print("Temporal como parametro",param)
@@ -187,44 +210,20 @@ class CodigoTarget():
                         print("La temporal tendra este registro",)
                         print("o es param reistro")
                         registro = self.getRegUnico(valor)
-                        newReg = "r"+str(param)
-                        print("La temporal",valor,"va a ir en el registro",registro)
-                        print("Y debe de ir en el",newReg)
-                        # registro debe de ir en new reg
-                        # debo de sacar el contenido de new reg y colocarlo en otro registro
-                        # r0 [t1] = newReg
-                        # r2 [t2] = registro
-                        # r3 [] = nuevoRegistro
+                      
+                        print("La temporal",valor,"va a ir en el registro",registro,"Y debe de ir en el",registerP)
 
-                        for k,v in self.registros.items():
-                            if(len(v) == 0):
-                                nuevoRegistro = k
-                                break
-
-                        for k, v in self.addr.items():
-                            if newReg in v:
-                                address = k
-                                break
-
-                        textoN = "\tmov "+nuevoRegistro+", "+ newReg
-
-                        self.registros[nuevoRegistro] = self.registros[newReg]
-                        self.addr[address] = [address,nuevoRegistro]
-                        codeTemp.append(textoN)
-
-                        texto = "\tmov "+newReg+", "+ registro
+                        texto = "\tmov "+registerP+", "+ registro
                         
-                        self.registros[newReg] = self.registros[registro]
+
+                        self.registros[registerP] =  [i for i in self.registros[registro]]
                         self.registros[registro] = []
-                        self.addr[valor] = [valor,newReg]
+                        self.addr[valor] = [valor,registerP]
                         codeTemp.append(texto)
                         
                         
                         print("asi queda")
                         print(texto)
-
-                        
-
                         print(self.registros)
                         print(self.addr)
                         
@@ -244,8 +243,8 @@ class CodigoTarget():
                         
                         #self.registros[registro] = []
                         #self.addr[valor] = [valor]
-                        print(self.registros)
-                        print(self.addr)
+                    print("Fin param",valor,self.registros)
+                    print(self.addr)
                     param+=1
 
                 elif "CALL" in line:
@@ -257,6 +256,10 @@ class CodigoTarget():
                     funcion  = line[5:posFun]
                     texto = "\tbl "+ funcion
                     codeTemp.append(texto)
+                    for k,v in self.addr.items():
+                        if("r0" in v):
+                            self.addr[k].remove("r0")
+                            
                     print("en un call",line)
                     print("La funcion es",funcion)
                     print("registros",self.registros)
